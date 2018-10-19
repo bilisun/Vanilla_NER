@@ -16,9 +16,9 @@ import functools
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train_corpus', default='./data/ner/eng.train.iobes')
-    parser.add_argument('--input_embedding', default="./embedding/glove.6B.100d.txt")
-    parser.add_argument('--output_map', default="./data/conll_map.pk")
+    parser.add_argument('--train_corpus', default='../data/ner/eng.train.iobes')
+    parser.add_argument('--input_embedding', default="../embedding/glove.6B.100d.txt")
+    parser.add_argument('--output_map', default="../data/conll_map.pk")
     parser.add_argument('--threshold', type=int, default=5)
     parser.add_argument('--unk', default='unk')
     args = parser.parse_args()
