@@ -47,8 +47,8 @@ if __name__ == "__main__":
     parser.add_argument('--train_file', default="../data/ner/eng.train.iobes")
     parser.add_argument('--test_file', default="../data/ner/eng.testb.iobes")
     parser.add_argument('--dev_file', default="../data/ner/eng.testa.iobes")
-    parser.add_argument('--input_map', default="./data/conll_map.pk")
-    parser.add_argument('--output_file', default="./data/ner_dataset.pk")
+    parser.add_argument('--input_map', default="../data/conll_map.pk")
+    parser.add_argument('--output_file', default="../data/ner_dataset.pk")
     parser.add_argument('--unk', default='<unk>')
     args = parser.parse_args()
 
