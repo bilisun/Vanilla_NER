@@ -88,8 +88,12 @@ class FullyConnectedCRFDataset(SeqDataset):
                 tmp_pf = list(itertools.accumulate(instance[3][:self.seq_len]))
                 tmp_pb = list(itertools.accumulate(instance[3][:self.seq_len][::-1]))[::-1]
 
-            tmp_batch[1].append([(x - 1) * cur_batch_size + instance_ind for x in tmp_pf])
-            tmp_batch[3].append([(x - 1) * cur_batch_size + instance_ind for x in tmp_pb])
+            tmp_batch[1].append(
+                    [(word_end - 1) * cur_batch_size + instance_ind for word_end in tmp_pf]
+            )
+            tmp_batch[3].append(
+                    [(word_end - 1) * cur_batch_size + instance_ind for word_end in tmp_pb]
+            )
 
             if word_padded_len_ins >= 0:
                 tmp_batch[4].append(instance[0] + [self.w_pad] * word_padded_len_ins)
