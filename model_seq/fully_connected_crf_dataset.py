@@ -1,3 +1,6 @@
+"""
+Based on Liyuan Liu's SeqDataset code
+"""
 from dataset import SeqDataset
 
 
