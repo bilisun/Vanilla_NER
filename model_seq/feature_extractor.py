@@ -1,18 +1,17 @@
 """
-.. module:: seqlabel
-    :synopsis: sequence labeling model
- 
-.. moduleauthor:: Liyuan Liu
+Feature extraction for sequences, based on Liyuan Liu's vanilla sequence labeling code
 """
+
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import model_seq.utils as utils
-from model_seq.crf import CRF
 
-class Vanilla_SeqLabel(nn.Module):
+
+class FeatureExtractor(nn.Module):
     """
-    Sequence Labeling model augumented without language model.
+    Extracts features from sequences
 
     Parameters
     ----------
@@ -32,14 +31,12 @@ class Vanilla_SeqLabel(nn.Module):
         dimension of word hidden states.
     w_layer : ``int`` , required.
         number of word lstms.
-    y_num : ``int`` , required.
-        number of tags types.
     droprate : ``float`` , required
         dropout ratio.
     unit : "str", optional, (default = 'lstm')
         type of the recurrent unit.
     """
-    def __init__(self, c_num, c_dim, c_hidden, c_layer, w_num, w_dim, w_hidden, w_layer, y_num, droprate, unit='lstm'):
+    def __init__(self, c_num, c_dim, c_hidden, c_layer, w_num, w_dim, w_hidden, w_layer, droprate, unit='lstm'):
         super(Vanilla_SeqLabel, self).__init__()
 
         rnnunit_map = {'rnn': nn.RNN, 'lstm': nn.LSTM, 'gru': nn.GRU}
@@ -59,9 +56,6 @@ class Vanilla_SeqLabel(nn.Module):
         tmp_rnn_dropout = droprate if w_layer > 1 else 0
         self.word_rnn = rnnunit_map[unit](w_dim * 2, w_hidden // 2, w_layer, dropout = tmp_rnn_dropout, bidirectional = True)
 
-        self.y_num = y_num
-        self.crf = CRF(w_hidden, y_num)
-
         self.drop = nn.Dropout(p = droprate)
 
     def to_params(self):
@@ -79,7 +73,6 @@ class Vanilla_SeqLabel(nn.Module):
             "word_hidden": self.word_rnn.hidden_size,
             "word_layers": self.word_rnn.num_layers,
             "droprate": self.drop.p,
-            "y_num": self.y_num,
             "label_schema": "iobes",
             "unit_type": self.unit_type
         }
@@ -131,7 +124,7 @@ class Vanilla_SeqLabel(nn.Module):
         output: ``torch.FloatTensor``.
             A float tensor of shape (sequence_len, batch_size, from_tag_size, to_tag_size)
         """
-        
+
         self.set_batch_seq_size(f_w)
 
         f_c_e = self.drop(self.char_embed(f_c))
@@ -144,15 +137,13 @@ class Vanilla_SeqLabel(nn.Module):
 
         b_c_e = b_c_e.view(-1, self.c_hidden).index_select(0, b_p).view(self.word_seq_length, self.batch_size, self.c_hidden)
 
-        c_o = self.drop(torch.cat([f_c_e, b_c_e], dim = 2))
+        c_o = self.drop(torch.cat([f_c_e, b_c_e], dim=2))
         c_o = self.char_seq(c_o)
 
         w_e = self.word_embed(f_w)
 
-        rnn_in = self.drop(torch.cat([c_o, w_e], dim = 2))
+        rnn_in = self.drop(torch.cat([c_o, w_e], dim=2))
 
         rnn_out, _ = self.word_rnn(rnn_in)
 
-        crf_out = self.crf(self.drop(rnn_out)).view(self.word_seq_length, self.batch_size, self.y_num, self.y_num)
-
-        return crf_out
+        return rnn_out
