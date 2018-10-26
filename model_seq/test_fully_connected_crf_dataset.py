@@ -1,7 +1,7 @@
-from fully_connected_crf_dataset import get_char_padded_len
+from fully_connected_crf_dataset import get_char_len
 
 
-def test_get_char_padded_len():
+def test_get_char_len():
     c_con = 'c'
     word_limit = 3
 
@@ -12,9 +12,9 @@ def test_get_char_padded_len():
             ['a', c_con, 'b', c_con],
     ]
 
-    assert get_char_padded_len(batch, c_con, word_limit) == 11
-    print('Test get_char_padded_len passed!')
+    assert get_char_len(batch, c_con, word_limit) == 11
+    print('Test get_char_len passed!')
 
 
 if __name__ == "__main__":
-    test_get_char_padded_len()
+    test_get_char_len()
