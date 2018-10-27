@@ -47,13 +47,27 @@ class TFBase(nn.Module):
         )
 
     def forward(self, features):
-        l = self.l(features)
+        """
+        features: (sequence length, batch size, hidden dim)
 
-        adapted_features = (Variable(torch.ones(features.shape[0], 1).cuda()) if self.no_adap else
-                features)
+        output: (sequence length, batch size, classes),
+                (sequence length, batch size, classes, classes)
+        """
+
+        hidden_dim = features.shape[2]
+        seq_features = features.view(-1, hidden_dim)
+
+        l = self.l(seq_features)
+        vl = l.view(-1, features.shape[1], self.num_classes)
+
+        adapted_features = (
+                Variable(torch.ones(seq_features.shape[0], 1).cuda())
+                if self.no_adap else seq_features
+        )
 
         ll_a = self.ll_a(feat).view(-1, self.num_classes, self.num_low_rank)
         ll_b = self.ll_b(feat).view(-1, self.num_low_rank, self.num_classes)
         ll = torch.bmm(ll_a, ll_b)
+        vll = ll.view(-1, features.shape[1], self.num_classes, self.num_classes)
 
-        return l, ll
+        return vl, vll

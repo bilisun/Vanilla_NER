@@ -122,7 +122,7 @@ class FeatureExtractor(nn.Module):
         Returns
         -------
         output: ``torch.FloatTensor``.
-            A float tensor of shape (sequence_len, batch_size, from_tag_size, to_tag_size)
+            A float tensor of shape (sequence_len, batch_size, hidden dimension)
         """
 
         self.set_batch_seq_size(f_w)
