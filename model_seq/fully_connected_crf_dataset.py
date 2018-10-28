@@ -3,6 +3,8 @@ Based on Liyuan Liu's SeqDataset code
 """
 from dataset import SeqDataset
 
+import numpy as np
+
 
 def get_char_len(batch_chars, c_con, word_limit):
     """
@@ -24,6 +26,12 @@ def get_char_len(batch_chars, c_con, word_limit):
             pos += 1
         char_len = max(char_len, pos)
     return char_len
+
+
+def to_onehot(indices, size):
+    onehot = np.zeros((len(indices), size))
+    onehot[np.arange(len(indices)), indices] = 1
+    return onehot
 
 
 class FullyConnectedCRFDataset(SeqDataset):
@@ -100,12 +108,12 @@ class FullyConnectedCRFDataset(SeqDataset):
 
             if word_padded_len_ins >= 0:
                 tmp_batch[4].append(instance[0] + [self.w_pad] * word_padded_len_ins)
-                tmp_batch[5].append(instance[2] + [self.f_pad] * word_padded_len_ins)
-                tmp_batch[6].append(instance[3] + [self.s_pad] * word_padded_len_ins)
+                tmp_batch[5].append(to_onehot(instance[2] + [self.f_pad] * word_padded_len_ins))
+                tmp_batch[6].append(to_onehot(instance[3] + [self.s_pad] * word_padded_len_ins))
             else:
                 tmp_batch[4].append(instance[0][:self.seq_len])
-                tmp_batch[5].append(instance[2][:self.seq_len])
-                tmp_batch[6].append(instance[3][:self.seq_len])
+                tmp_batch[5].append(to_onehot(instance[2][:self.seq_len]))
+                tmp_batch[6].append(to_onehot(instance[3][:self.seq_len]))
 
         # Tensor shapes are now (number of chars or words, batch size)
         tbt = [torch.LongTensor(v).transpose(0, 1).contiguous() for v in tmp_batch]
