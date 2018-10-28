@@ -34,7 +34,7 @@ def to_onehot(indices, size):
     return onehot
 
 
-class FullyConnectedCRFDataset(SeqDataset):
+class FullyConnectedCRFDataset(object):
     """
     Dataset for fully connected CRF
 
@@ -44,12 +44,80 @@ class FullyConnectedCRFDataset(SeqDataset):
     seq_len: fixed length of sequences per batch
     """
     def __init__(
-            self, dataset: list, w_pad: int, c_con: int, c_pad: int, f_start: int, f_pad: int,
-            f_size: int, s_start: int, s_pad: int, s_size: int, batch_size: int, seq_len: int
+            self, dataset: list, w_pad: int, c_con: int, c_pad: int, f_pad: int,
+            f_size: int, s_pad: int, s_size: int, batch_size: int, seq_len: int
     ):
-        SeqDataset.__init__(self, dataset, w_pad, c_con, c_pad, f_start, f_pad, f_size, batch_size)
-
+        self.w_pad = w_pad
+        self.c_con = c_con
+        self.c_pad = c_pad
+        self.f_pad = f_pad
+        self.f_size = f_size
+        self.s_pad = s_pad
+        self.s_size = s_size
+        self.batch_size = batch_size
         self.seq_len = seq_len
+
+        self.construct_index(dataset)
+        self.shuffle()
+
+    def shuffle(self):
+        """
+        shuffle dataset
+        """
+        random.shuffle(self.shuffle_list)
+
+    def get_tqdm(self, device):
+        """
+        construct dataset reader and the corresponding tqdm.
+
+        Parameters
+        ----------
+        device: ``torch.device``, required.
+            the target device for the dataset loader.
+
+        """
+        return tqdm(self.reader(device), mininterval=2, total=self.index_length // self.batch_size, leave=False, file=sys.stdout, ncols=80)
+
+    def construct_index(self, dataset):
+        """
+        construct index for the dataset.
+
+        Parameters
+        ----------
+        dataset: ``list``, required.
+            the encoded dataset (outputs of preprocess scripts).
+        """
+        for instance in dataset:
+            c_len = [len(tup)+1 for tup in instance[1]]
+            c_ins = [tup for ins in instance[1] for tup in (ins + [self.c_con])]
+            instance[1] = c_ins
+            instance.append(c_len)
+
+        self.dataset = dataset
+        self.index_length = len(dataset)
+        self.shuffle_list = list(range(0, self.index_length))
+
+    def reader(self, device):
+        """
+        construct dataset reader.
+
+        Parameters
+        ----------
+        device: ``torch.device``, required.
+            the target device for the dataset loader.
+
+        Returns
+        -------
+        reader: ``iterator``.
+            A lazy iterable object
+        """
+        cur_idx = 0
+        while cur_idx < self.index_length:
+            end_index = min(cur_idx + self.batch_size, self.index_length)
+            batch = [self.dataset[self.shuffle_list[index]] for index in range(cur_idx, end_index)]
+            cur_idx = end_index
+            yield self.batchify(batch, device)
+        self.shuffle()
 
     def batchify(self, batch, device):
         """
@@ -69,7 +137,8 @@ class FullyConnectedCRFDataset(SeqDataset):
          backward character ids,
          backward character indices,
          word ids,
-         labels)
+         label 1 onehot,
+         label 2 onehot)
         """
 
         cur_batch_size = len(batch)
