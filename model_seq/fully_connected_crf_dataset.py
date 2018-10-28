@@ -36,10 +36,10 @@ class FullyConnectedCRFDataset(SeqDataset):
     seq_len: fixed length of sequences per batch
     """
     def __init__(
-            self, dataset: list, w_pad: int, c_con: int, c_pad: int, y_start: int, y_pad: int,
-            y_size: int, batch_size: int, seq_len: int
+            self, dataset: list, w_pad: int, c_con: int, c_pad: int, f_start: int, f_pad: int,
+            f_size: int, s_start: int, s_pad: int, s_size: int, batch_size: int, seq_len: int
     ):
-        SeqDataset.__init__(self, dataset, w_pad, c_con, c_pad, y_start, y_pad, y_size, batch_size)
+        SeqDataset.__init__(self, dataset, w_pad, c_con, c_pad, f_start, f_pad, f_size, batch_size)
 
         self.seq_len = seq_len
 
@@ -100,10 +100,12 @@ class FullyConnectedCRFDataset(SeqDataset):
 
             if word_padded_len_ins >= 0:
                 tmp_batch[4].append(instance[0] + [self.w_pad] * word_padded_len_ins)
-                tmp_batch[5].append(instance[2] + [self.y_pad] * word_padded_len_ins)
+                tmp_batch[5].append(instance[2] + [self.f_pad] * word_padded_len_ins)
+                tmp_batch[6].append(instance[3] + [self.s_pad] * word_padded_len_ins)
             else:
                 tmp_batch[4].append(instance[0][:self.seq_len])
                 tmp_batch[5].append(instance[2][:self.seq_len])
+                tmp_batch[6].append(instance[3][:self.seq_len])
 
         # Tensor shapes are now (number of chars or words, batch size)
         tbt = [torch.LongTensor(v).transpose(0, 1).contiguous() for v in tmp_batch]
