@@ -53,13 +53,14 @@ if __name__ == "__main__":
 
     with open(args.input_map, 'rb') as f:
         p_data = pickle.load(f)
-        name_list = ['gw_map', 'c_map', 'f_map', 's_map', 'emb_array']
-        gw_map, c_map, f_map, s_map, emb_array = [p_data[tup] for tup in name_list]
+        name_list = ['gw_map', 'c_map', 'f_map', 's_map', 'y_map', 'emb_array']
+        gw_map, c_map, f_map, s_map, y_map, emb_array = [p_data[tup] for tup in name_list]
 
     train_dataset = encode_dataset(args.train_file, gw_map, c_map, f_map, s_map)
     test_dataset = encode_dataset(args.test_file, gw_map, c_map, f_map, s_map)
     dev_dataset = encode_dataset(args.dev_file, gw_map, c_map, f_map, s_map)
 
     with open(args.output_file, 'wb') as f:
-        pickle.dump({'gw_map': gw_map, 'c_map': c_map, 'f_map': f_map, 's_map': s_map, 'emb_array': emb_array, 'train_data': train_dataset, 'test_data': test_dataset, 'dev_data': dev_dataset}, f)
+        pickle.dump({'gw_map': gw_map, 'c_map': c_map, 'f_map': f_map, 's_map': s_map, 'y_map': y_map,
+                     'emb_array': emb_array, 'train_data': train_dataset, 'test_data': test_dataset, 'dev_data': dev_dataset}, f)
         

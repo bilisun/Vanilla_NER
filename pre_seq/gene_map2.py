@@ -46,6 +46,7 @@ if __name__ == "__main__":
     c_count = dict()
     f_map = dict()
     s_map = dict()
+    y_map = dict()
     # y_map = {'B-LST':0, 'E-LST':1}
 
     with open(args.train_corpus, 'r') as fin:
@@ -57,6 +58,9 @@ if __name__ == "__main__":
                 for tup in line[0]:
                     c_count[tup] = c_count.get(tup, 0) + 1
                 c_count[' '] = c_count.get(' ', 0) + 1
+
+                if line[-1] not in y_map:
+                    y_map[line[-1]] = len(y_map)
 
                 a, b = split_label(line[-1])
                 if a not in f_map:
@@ -76,10 +80,10 @@ if __name__ == "__main__":
     c_map = {v[0]:k for k, v in enumerate(c_count.items()) if v[1] > args.threshold}
     c_map['<unk>'] = len(c_map)
 
-    f_map['<s>'] = len(f_map)
     f_map['<eof>'] = len(f_map)
-    s_map['<s>'] = len(s_map)
     s_map['<eof>'] = len(s_map)
 
     with open(args.output_map, 'wb') as f:
-        pickle.dump({'gw_map': gw_map, 'c_map': c_map, 'f_map': f_map, 's_map': s_map, 'emb_array': embedding_array}, f)
+        pickle.dump({
+            'gw_map': gw_map, 'c_map': c_map, 'f_map': f_map, 's_map': s_map, 'y_map': y_map, 'emb_array': embedding_array
+        }, f)
