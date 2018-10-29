@@ -64,17 +64,11 @@ class FullyConnectedCRFDataset(object):
         """
         random.shuffle(self.shuffle_list)
 
-    def get_tqdm(self, device):
+    def get_tqdm(self):
         """
         construct dataset reader and the corresponding tqdm.
-
-        Parameters
-        ----------
-        device: ``torch.device``, required.
-            the target device for the dataset loader.
-
         """
-        return tqdm(self.reader(device), mininterval=2, total=self.index_length // self.batch_size, leave=False, file=sys.stdout, ncols=80)
+        return tqdm(self.reader(), mininterval=2, total=self.index_length // self.batch_size, leave=False, file=sys.stdout, ncols=80)
 
     def construct_index(self, dataset):
         """
@@ -95,14 +89,9 @@ class FullyConnectedCRFDataset(object):
         self.index_length = len(dataset)
         self.shuffle_list = list(range(0, self.index_length))
 
-    def reader(self, device):
+    def reader(self):
         """
         construct dataset reader.
-
-        Parameters
-        ----------
-        device: ``torch.device``, required.
-            the target device for the dataset loader.
 
         Returns
         -------
@@ -114,19 +103,17 @@ class FullyConnectedCRFDataset(object):
             end_index = min(cur_idx + self.batch_size, self.index_length)
             batch = [self.dataset[self.shuffle_list[index]] for index in range(cur_idx, end_index)]
             cur_idx = end_index
-            yield self.batchify(batch, device)
+            yield self.batchify(batch)
         self.shuffle()
 
-    def batchify(self, batch, device):
+    def batchify(self, batch):
         """
-        batchify a batch of data and move to a device.
+        batchify a batch of data and move to gpu.
 
         Parameters
         ----------
         batch: ``list``, required.
             a sample from the encoded dataset (outputs of preprocess scripts).  
-        device: ``torch.device``, required.
-            the target device for the dataset loader.
 
         Returns
         ----------
@@ -188,4 +175,4 @@ class FullyConnectedCRFDataset(object):
         tbt[1] = tbt[1].view(-1)
         tbt[3] = tbt[3].view(-1)
 
-        return [ten.to(device) for ten in tbt]
+        return [Variable(ten.cuda()) for ten in tbt]
