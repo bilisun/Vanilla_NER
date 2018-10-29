@@ -37,8 +37,6 @@ class FeatureExtractor(nn.Module):
         type of the recurrent unit.
     """
     def __init__(self, c_num, c_dim, c_hidden, c_layer, w_num, w_dim, w_hidden, w_layer, droprate, unit='lstm'):
-        super(Vanilla_SeqLabel, self).__init__()
-
         rnnunit_map = {'rnn': nn.RNN, 'lstm': nn.LSTM, 'gru': nn.GRU}
 
         self.char_embed = nn.Embedding(c_num, c_dim)
