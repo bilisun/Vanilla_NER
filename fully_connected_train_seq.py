@@ -9,9 +9,9 @@ import pickle
 import math
 
 from model_seq.crf import CRFLoss, CRFDecode
-from model_seq.dataset import SeqDataset
+from model_seq.fully_connected_crf_dataset import FullyConnectedCRFDataset
 from model_seq.evaluator import eval_wc
-from model_seq.seqlabel import Vanilla_SeqLabel
+from model_seq.feature_extractor import FeatureExtractor
 import model_seq.utils as utils
 
 from torch_scope import wrapper
@@ -44,6 +44,13 @@ if __name__ == "__main__":
     parser.add_argument('--seq_model', choices=['vanilla'], default='vanilla')
     parser.add_argument('--seq_rnn_unit', choices=['gru', 'lstm', 'rnn'], default='lstm')
 
+    parser.add_argument('--num_low_rank', type=int, default=5)
+    parser.add_argument('--adap', dest='no_adap', action='store_false',
+                        help='adaptive message passing')
+    parser.add_argument('--no-adap', dest='no_adap', action='store_true',
+                        help='no adaptive message passing')
+    parser.add_argument('--pairwise_type', default=1, type=int)
+
     parser.add_argument('--batch_size', type=int, default=10)
     parser.add_argument('--patience', type=int, default=15)
     parser.add_argument('--epoch', type=int, default=200)
@@ -68,29 +75,39 @@ if __name__ == "__main__":
     pw.info('Loading data')
 
     dataset = pickle.load(open(args.corpus, 'rb'))
-    name_list = ['gw_map', 'c_map', 'y_map', 'emb_array', 'train_data', 'test_data', 'dev_data']
-    gw_map, c_map, y_map, emb_array, train_data, test_data, dev_data = [dataset[tup] for tup in name_list ]
+    name_list = ['gw_map', 'c_map', 'f_map', 's_map', 'y_map', 'emb_array', 'train_data', 'test_data', 'dev_data']
+    gw_map, c_map, f_map, s_map, y_map, emb_array, train_data, test_data, dev_data = [dataset[tup] for tup in name_list]
 
     
     pw.info('Building models')
 
-    SL_map = {'vanilla':Vanilla_SeqLabel}
-    seq_model = SL_map[args.seq_model](len(c_map), args.seq_c_dim, args.seq_c_hid, args.seq_c_layer, len(gw_map), args.seq_w_dim, args.seq_w_hid, args.seq_w_layer, len(y_map), args.seq_droprate, unit=args.seq_rnn_unit)
-    seq_model.rand_init()
-    seq_model.load_pretrained_word_embedding(torch.FloatTensor(emb_array))
-    seq_config = seq_model.to_params()
-    seq_model.to(device)
+    feature_extractor = FeatureExtractor(len(c_map), args.seq_c_dim, args.seq_c_hid, args.seq_c_layer, len(gw_map), args.seq_w_dim, args.seq_w_hid, args.seq_w_layer, len(y_map), args.seq_droprate, unit=args.seq_rnn_unit)
+    feature_extractor.rand_init()
+    feature_extractor.load_pretrained_word_embedding(torch.FloatTensor(emb_array))
+    seq_config = feature_extractor.to_params()
+    feature_extractor.to(device)
+
+    base_model = TFBase(len(y_map), len(f_map), len(s_map), args.num_low_rank, no_adap=args.no_adap,
+                        pairwise_type=args.pairwise_type)
+    base_model.to(device)
+
     crit = CRFLoss(y_map)
     decoder = CRFDecode(y_map)
     evaluator = eval_wc(decoder, 'f1')
 
     pw.info('Constructing dataset')
 
-    train_dataset, test_dataset, dev_dataset = [SeqDataset(tup_data, gw_map['<\n>'], c_map[' '], c_map['\n'], y_map['<s>'], y_map['<eof>'], len(y_map), args.batch_size) for tup_data in [train_data, test_data, dev_data]]
+    train_dataset, test_dataset, dev_dataset = [
+            FullyConnectedCRFDataset(
+                tup_data, gw_map['<\n>'], c_map[' '], c_map['\n'], f_map['<eof>'], len(f_map),
+                s_map['<eof>'], len(s_map), args.batch_size
+            ) for tup_data in [train_data, test_data, dev_data]
+    ]
 
     pw.info('Constructing optimizer')
 
-    param_dict = filter(lambda t: t.requires_grad, seq_model.parameters())
+    all_params = feature_extractor.parameters() + base_model.parameters()
+    param_dict = filter(lambda t: t.requires_grad, all_params)
     optim_map = {'Adam' : optim.Adam, 'Adagrad': optim.Adagrad, 'Adadelta': optim.Adadelta, 'SGD': functools.partial(optim.SGD, momentum=0.9)}
     if args.lr > 0:
         optimizer=optim_map[args.update](param_dict, lr=args.lr)
@@ -115,17 +132,17 @@ if __name__ == "__main__":
             pw.nvidia_memory_map()
 
             seq_model.train()
-            for f_c, f_p, b_c, b_p, f_w, f_y, f_y_m, _ in train_dataset.get_tqdm(device):
+            for f_c, f_p, b_c, b_p, f_w, label_f, label_s in train_dataset.get_tqdm(device):
 
                 seq_model.zero_grad()
                 output = seq_model(f_c, f_p, b_c, b_p, f_w)
-                loss = crit(output, f_y, f_y_m)
+                loss = crit(output, label_s, label_f)
 
                 tot_loss += utils.to_scalar(loss)
                 normalizer += 1
 
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(seq_model.parameters(), args.clip)
+                torch.nn.utils.clip_grad_norm_(all_params, args.clip)
                 optimizer.step()
 
                 batch_index += 1
