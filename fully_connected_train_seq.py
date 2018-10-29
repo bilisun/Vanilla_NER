@@ -22,6 +22,26 @@ import os
 import sys
 import itertools
 import functools
+import numpy as np
+
+
+def combine(a, b):
+    if a == 'O' and b == 'O':
+        return 'O'
+    return a + '-' + b
+
+
+def get_mask(f_map, s_map, y_map):
+    f_len = len(f_map)
+    s_len = len(s_map)
+
+    mask = np.ones(f_len * s_len)
+    for fw, fc in f_map.items():
+        for sw, sc in s_map.items():
+            w = combine(fw, sw)
+            if w not in y_map and not (fw == '<eof>' and sw == '<eof>'):
+                mask[s_len * fc + sc] = 0
+    return mask
 
 
 if __name__ == "__main__":
