@@ -4,28 +4,6 @@ Based on Liyuan Liu's SeqDataset code
 import numpy as np
 
 
-def get_char_len(batch_chars, c_con, word_limit):
-    """
-    Given a limit on the number of words per sequence, find the padding length for this batch
-
-    batch_chars: batch of character arrays - words are sequence of characters, ending with c_con
-    c_con: delimiter between words
-    word_limit: max number of words per sequence
-    """
-    char_len = 0
-    for chars in batch_chars:
-        assert chars[-1] == c_con
-
-        pos = 0
-        num_words = 0
-        while pos < len(chars) and num_words < word_limit:
-            if chars[pos] == c_con:
-                num_words += 1
-            pos += 1
-        char_len = max(char_len, pos)
-    return char_len
-
-
 def to_onehot(indices, size):
     onehot = np.zeros((len(indices), size))
     onehot[np.arange(len(indices)), indices] = 1
@@ -36,14 +14,11 @@ class FullyConnectedCRFDataset(object):
     """
     Dataset for fully connected CRF
 
-    All batches have the same sequence length
-    Shorter sequences are padded to the length, longer sequences take the prefix
-
-    seq_len: fixed length of sequences per batch
+    Shorter sequences are padded to the max length in the batch
     """
     def __init__(
             self, dataset: list, w_pad: int, c_con: int, c_pad: int, f_pad: int,
-            f_size: int, s_pad: int, s_size: int, batch_size: int, seq_len: int
+            f_size: int, s_pad: int, s_size: int, batch_size: int
     ):
         self.w_pad = w_pad
         self.c_con = c_con
@@ -53,7 +28,6 @@ class FullyConnectedCRFDataset(object):
         self.s_pad = s_pad
         self.s_size = s_size
         self.batch_size = batch_size
-        self.seq_len = seq_len
 
         self.construct_index(dataset)
         self.shuffle()
@@ -128,8 +102,8 @@ class FullyConnectedCRFDataset(object):
 
         cur_batch_size = len(batch)
 
-        batch_chars = [tup[1] for tup in batch]
-        char_len = get_char_len(batch_chars, self.c_con, self.seq_len)
+        char_padded_len = max([len(tup[1]) for tup in batch])
+        word_padded_len = max([len(tup[0]) for tup in batch])
 
         tmp_batch =  [list() for ind in range(6)]
 
@@ -137,21 +111,13 @@ class FullyConnectedCRFDataset(object):
             instance = batch[instance_ind]
 
             char_padded_len_ins = char_len - len(instance[1])
-            word_padded_len_ins = self.seq_len - len(instance[0])
+            word_padded_len_ins = word_padded_len - len(instance[0])
 
-            if char_padded_len_ins >= 0:
-                tmp_batch[0].append(instance[1] + [self.c_pad] * char_padded_len_ins)
-                tmp_batch[2].append(instance[1][::-1] + [self.c_pad] * char_padded_len_ins)
-            else:
-                tmp_batch[0].append(instance[1][:char_len])
-                tmp_batch[2].append(instance[1][:char_len][::-1])
+            tmp_batch[0].append(instance[1] + [self.c_pad] * char_padded_len_ins)
+            tmp_batch[2].append(instance[1][::-1] + [self.c_pad] * char_padded_len_ins)
 
-            if word_padded_len_ins >= 0:
-                tmp_pf = list(itertools.accumulate(instance[3] + [0] * word_padded_len_ins))
-                tmp_pb = list(itertools.accumulate(instance[3][::-1]))[::-1] + [1] * word_padded_len_ins
-            else:
-                tmp_pf = list(itertools.accumulate(instance[3][:self.seq_len]))
-                tmp_pb = list(itertools.accumulate(instance[3][:self.seq_len][::-1]))[::-1]
+            tmp_pf = list(itertools.accumulate(instance[3] + [0] * word_padded_len_ins))
+            tmp_pb = list(itertools.accumulate(instance[3][::-1]))[::-1] + [1] * word_padded_len_ins
 
             tmp_batch[1].append(
                     [(word_end - 1) * cur_batch_size + instance_ind for word_end in tmp_pf]
@@ -160,14 +126,9 @@ class FullyConnectedCRFDataset(object):
                     [(word_end - 1) * cur_batch_size + instance_ind for word_end in tmp_pb]
             )
 
-            if word_padded_len_ins >= 0:
-                tmp_batch[4].append(instance[0] + [self.w_pad] * word_padded_len_ins)
-                tmp_batch[5].append(to_onehot(instance[2] + [self.f_pad] * word_padded_len_ins))
-                tmp_batch[6].append(to_onehot(instance[3] + [self.s_pad] * word_padded_len_ins))
-            else:
-                tmp_batch[4].append(instance[0][:self.seq_len])
-                tmp_batch[5].append(to_onehot(instance[2][:self.seq_len]))
-                tmp_batch[6].append(to_onehot(instance[3][:self.seq_len]))
+            tmp_batch[4].append(instance[0] + [self.w_pad] * word_padded_len_ins)
+            tmp_batch[5].append(to_onehot(instance[2] + [self.f_pad] * word_padded_len_ins))
+            tmp_batch[6].append(to_onehot(instance[3] + [self.s_pad] * word_padded_len_ins))
 
         # Tensor shapes are now (number of chars or words, batch size)
         tbt = [torch.LongTensor(v).transpose(0, 1).contiguous() for v in tmp_batch]
