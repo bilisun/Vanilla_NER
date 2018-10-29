@@ -3,7 +3,6 @@ import numpy as np
 import itertools
 
 import model_seq.utils as utils
-from torch.autograd import Variable
 
 
 class eval_batch:
@@ -28,16 +27,12 @@ class eval_batch:
         self.guess_count = 0
         self.overlap_count = 0
 
-    def calc_f1_batch(self, decoded_data, target_data):
+    def calc_f1_batch(self, outputs, target):
         """
         update statics for f1 score.
 
-        Parameters
-        ----------
-        decoded_data: ``torch.LongTensor``, required.
-            the decoded best label index pathes.
-        target_data:  ``torch.LongTensor``, required.
-            the golden label index pathes.
+        outputs: (seq len, batch size, classifications)
+        target: (seq len, batch size, classifications)
         """
         batch_decoded = torch.unbind(decoded_data, 1)
 
@@ -52,16 +47,12 @@ class eval_batch:
             self.guess_count += guess_count_i
             self.overlap_count += overlap_count_i
 
-    def calc_acc_batch(self, decoded_data, target_data):
+    def calc_acc_batch(self, outputs, target_data):
         """
         update statics for accuracy score.
 
-        Parameters
-        ----------
-        decoded_data: ``torch.LongTensor``, required.
-            the decoded best label index pathes.
-        target_data:  ``torch.LongTensor``, required.
-            the golden label index pathes.
+        outputs: (seq len, batch size, classifications)
+        target: (seq len, batch size, classifications)
         """
         batch_decoded = torch.unbind(decoded_data, 1)
 
@@ -128,13 +119,11 @@ class eval_wc(eval_batch):
 
     Parameters
     ----------
-    decoder : ``torch.nn.Module``, required.
-        the decoder module, which needs to contain the ``to_span()`` and ``decode()`` method.
     score_type : ``str``, required.
         whether the f1 score or the accuracy is needed.
     """
-    def __init__(self, decoder, score_type):
-        eval_batch.__init__(self, decoder)
+    def __init__(self, score_type):
+        eval_batch.__init__(self)
 
         if 'f' in score_type:
             self.eval_b = self.calc_f1_batch
@@ -143,28 +132,24 @@ class eval_wc(eval_batch):
             self.eval_b = self.calc_acc_batch
             self.calc_s = self.acc_score
 
-    def calc_score(self, seq_model, dataset_loader):
+    def calc_score(self, feature_extractor, base_model, crit, dataset_loader):
         """
         calculate scores
-
-        Parameters
-        ----------
-        seq_model: required.
-            sequence labeling model.
-        dataset_loader: required.
-            the dataset loader.
 
         Returns
         -------
         score: ``float``.
             calculated score.
         """
-        seq_model.eval()
+        feature_extractor.eval()
+        base_model.eval()
+        crit.eval()
         self.reset()
 
-        for f_c, f_p, b_c, b_p, f_w, _, f_y_m, g_y in dataset_loader:
-            scores = seq_model(f_c, f_p, b_c, b_p, f_w)
-            decoded = self.decoder.decode(scores.data, f_y_m)
-            self.eval_b(decoded, g_y)
+        for f_c, f_p, b_c, b_p, f_w, label_f, label_s in dataset_loader:
+            features = feature_extractor(f_c, f_p, b_c, b_p, f_w)
+            f, s, fs, ff, ss, fs_t, sf_t = base_model(features)
+            f_out, s_out, loss = crit(f, s, fs, ff, ss, fs_t, sf_t, label_f, label_s)
+            self.eval_b(f_out, s_out, label_f, label_s)
 
         return self.calc_s()

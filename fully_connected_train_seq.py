@@ -9,7 +9,7 @@ import pickle
 import math
 
 from model_seq.fully_connected_crf_dataset import FullyConnectedCRFDataset
-from model_seq.evaluator import eval_wc
+from model_seq.two_label_evaluator import eval_wc
 from model_seq.feature_extractor import FeatureExtractor
 from model_seq.TFBase import TFBase
 from model_seq.TFCriterion import TFCriterion
@@ -134,7 +134,7 @@ if __name__ == "__main__":
     crit = TFCriterion(
             args.w_temporal, args.w_spatial, args.sigma, args.only_unary, args.no_spatial
     ).cuda()
-    evaluator = eval_wc(decoder, 'f1')
+    evaluator = eval_wc('f1')
 
     pw.info('Constructing dataset')
 
@@ -199,8 +199,8 @@ if __name__ == "__main__":
                 current_lr = args.lr / (1 + (indexs + 1) * args.lr_decay)
                 utils.adjust_learning_rate(optimizer, current_lr)
 
-            dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model,
-                    dev_dataset.get_tqdm())
+            dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(feature_extractor, base_model,
+                    crit, dev_dataset.get_tqdm())
 
             pw.add_loss_vs_batch({'dev_f1': dev_f1}, indexs, use_logger = True)
             pw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, use_logger = False)
@@ -214,8 +214,8 @@ if __name__ == "__main__":
                                 'epoch': indexs})
 
             if dev_f1 > best_f1:
-                test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model,
-                        test_dataset.get_tqdm())
+                test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(feature_extractor,
+                        base_model, crit, test_dataset.get_tqdm())
                 best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
                 pw.add_loss_vs_batch({'test_f1': test_f1}, indexs, use_logger = True)
                 pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, use_logger = False)
@@ -233,7 +233,7 @@ if __name__ == "__main__":
         print(e_ins.args)
         print(e_ins)
 
-        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm())
+        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(feature_extractor, base_model, crit, dev_dataset.get_tqdm())
 
         pw.add_loss_vs_batch({'dev_f1': dev_f1}, indexs, use_logger = True)
         pw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, use_logger = False)
@@ -246,8 +246,8 @@ if __name__ == "__main__":
                             'best_f1': best_f1,
                             'epoch': indexs})
 
-        test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model,
-                test_dataset.get_tqdm())
+        test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(feature_extractor, base_model,
+                crit, test_dataset.get_tqdm())
         best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
         pw.add_loss_vs_batch({'test_f1': test_f1}, indexs, use_logger = True)
         pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, use_logger = False)
