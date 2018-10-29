@@ -62,7 +62,6 @@ if __name__ == "__main__":
 
     parser.add_argument('--corpus', default='./data/ner_dataset.pk')
 
-    parser.add_argument('--seq_len', type=int, default=25)
     parser.add_argument('--seq_c_dim', type=int, default=30)
     parser.add_argument('--seq_c_hid', type=int, default=150)
     parser.add_argument('--seq_c_layer', type=int, default=1)
@@ -141,7 +140,7 @@ if __name__ == "__main__":
     train_dataset, test_dataset, dev_dataset = [
             FullyConnectedCRFDataset(
                 tup_data, gw_map['<\n>'], c_map[' '], c_map['\n'], f_map['<eof>'], len(f_map),
-                s_map['<eof>'], len(s_map), args.batch_size, args.seq_len
+                s_map['<eof>'], len(s_map), args.batch_size
             ) for tup_data in [train_data, test_data, dev_data]
     ]
 
