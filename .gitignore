@@ -1,5 +1,4 @@
 data/
 embedding/
-.*
 *.pyc
 __pycache__/
