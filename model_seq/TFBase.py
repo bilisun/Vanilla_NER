@@ -43,6 +43,7 @@ class TFBase(nn.Module):
         self.f_classes = f_classes
         self.s_classes = s_classes
         self.no_adap = no_adap
+        self.pairwise_type = pairwise_type
 
         # Unary potentials
         self.f = nn.Linear(dim, self.f_classes)
@@ -74,6 +75,9 @@ class TFBase(nn.Module):
                 _BaseModule(1, self.s_classes, self.f_classes, mask=mask_t, _type=1) if self.no_adap else
                 _BaseModule(dim, self.s_classes, self.f_classes, mask=mask_t, _type=pairwise_type)
         )
+
+    def to_params(self):
+        return {'adap': self.no_adap, 'pairwise_type': self.pairwise_type}
 
     def forward(self, features):
         """
