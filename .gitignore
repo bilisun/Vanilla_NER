@@ -2,3 +2,4 @@ data/
 embedding/
 *.pyc
 __pycache__/
+*.swp
