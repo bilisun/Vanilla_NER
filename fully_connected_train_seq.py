@@ -8,10 +8,11 @@ import codecs
 import pickle
 import math
 
-from model_seq.crf import CRFLoss, CRFDecode
 from model_seq.fully_connected_crf_dataset import FullyConnectedCRFDataset
 from model_seq.evaluator import eval_wc
 from model_seq.feature_extractor import FeatureExtractor
+from model_seq.TFBase import TFBase
+from model_seq.TFCriterion import TFCriterion
 import model_seq.utils as utils
 
 from torch_scope import wrapper
@@ -23,6 +24,13 @@ import sys
 import itertools
 import functools
 import numpy as np
+
+
+# Hack to save multiple models
+class ModelWrapper(nn.Module):
+    def __init__(self, extractor, base):
+        self.extractor = extractor
+        self.base = base
 
 
 def combine(a, b):
@@ -54,6 +62,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--corpus', default='./data/ner_dataset.pk')
 
+    parser.add_argument('--seq_len', type=int, default=25)
     parser.add_argument('--seq_c_dim', type=int, default=30)
     parser.add_argument('--seq_c_hid', type=int, default=150)
     parser.add_argument('--seq_c_layer', type=int, default=1)
@@ -64,11 +73,22 @@ if __name__ == "__main__":
     parser.add_argument('--seq_model', choices=['vanilla'], default='vanilla')
     parser.add_argument('--seq_rnn_unit', choices=['gru', 'lstm', 'rnn'], default='lstm')
 
+    parser.add_argument('--only_unary', dest='only_unary', action='store_true',
+                       help='consider only unary potential')
+    parser.add_argument('--with_binary', dest='only_unary', action='store_false',
+                       help='consider unary + binary potential ')
+    parser.add_argument('--no_spatial', dest='no_spatial', action='store_true',
+                       help='consider no cross prediction relationship')
+    parser.add_argument('--with_spatial', dest='no_spatial', action='store_false',
+                       help='considercross prediction relationship')   
     parser.add_argument('--adap', dest='no_adap', action='store_false',
                         help='adaptive message passing')
     parser.add_argument('--no-adap', dest='no_adap', action='store_true',
                         help='no adaptive message passing')
     parser.add_argument('--pairwise_type', default=1, type=int)
+    parser.add_argument('--w_temporal', default=1.0, type=float)
+    parser.add_argument('--w_spatial', default=1.0, type=float)
+    parser.add_argument('--sigma', default=150, type=float)
 
     parser.add_argument('--batch_size', type=int, default=10)
     parser.add_argument('--patience', type=int, default=15)
@@ -86,11 +106,6 @@ if __name__ == "__main__":
     pw = wrapper(os.path.join(args.cp_root, args.checkpoint_name), args.checkpoint_name, enable_git_track=args.git_tracking)
     pw.set_level('info')
 
-    gpu_index = pw.auto_device() if 'auto' == args.gpu else int(args.gpu)
-    device = torch.device("cuda:" + str(gpu_index) if gpu_index >= 0 else "cpu")
-    if gpu_index >= 0:
-        torch.cuda.set_device(gpu_index)
-    
     pw.info('Loading data')
 
     dataset = pickle.load(open(args.corpus, 'rb'))
@@ -100,18 +115,25 @@ if __name__ == "__main__":
     
     pw.info('Building models')
 
-    feature_extractor = FeatureExtractor(len(c_map), args.seq_c_dim, args.seq_c_hid, args.seq_c_layer, len(gw_map), args.seq_w_dim, args.seq_w_hid, args.seq_w_layer, len(y_map), args.seq_droprate, unit=args.seq_rnn_unit)
+    feature_extractor = FeatureExtractor(
+            len(c_map), args.seq_c_dim, args.seq_c_hid, args.seq_c_layer, len(gw_map),
+            args.seq_w_dim, args.seq_w_hid, args.seq_w_layer, len(y_map), args.seq_droprate,
+            unit=args.seq_rnn_unit
+    ).cuda()
     feature_extractor.rand_init()
     feature_extractor.load_pretrained_word_embedding(torch.FloatTensor(emb_array))
     seq_config = feature_extractor.to_params()
-    feature_extractor.to(device)
 
     fs_mask = get_mask(f_map, s_map, y_map)
-    base_model = TFBase(len(y_map), len(f_map), len(s_map), fs_mask, no_adap=args.no_adap, pairwise_type=args.pairwise_type)
-    base_model.to(device)
+    base_model = TFBase(
+            len(y_map), len(f_map), len(s_map), fs_mask, no_adap=args.no_adap,
+            pairwise_type=args.pairwise_type
+    ).cuda()
+    base_config = base_model.to_params()
 
-    crit = CRFLoss(y_map)
-    decoder = CRFDecode(y_map)
+    crit = TFCriterion(
+            args.w_temporal, args.w_spatial, args.sigma, args.only_unary, args.no_spatial
+    ).cuda()
     evaluator = eval_wc(decoder, 'f1')
 
     pw.info('Constructing dataset')
@@ -119,19 +141,18 @@ if __name__ == "__main__":
     train_dataset, test_dataset, dev_dataset = [
             FullyConnectedCRFDataset(
                 tup_data, gw_map['<\n>'], c_map[' '], c_map['\n'], f_map['<eof>'], len(f_map),
-                s_map['<eof>'], len(s_map), args.batch_size
+                s_map['<eof>'], len(s_map), args.batch_size, args.seq_len
             ) for tup_data in [train_data, test_data, dev_data]
     ]
 
     pw.info('Constructing optimizer')
 
     all_params = feature_extractor.parameters() + base_model.parameters()
-    param_dict = filter(lambda t: t.requires_grad, all_params)
     optim_map = {'Adam' : optim.Adam, 'Adagrad': optim.Adagrad, 'Adadelta': optim.Adadelta, 'SGD': functools.partial(optim.SGD, momentum=0.9)}
     if args.lr > 0:
-        optimizer=optim_map[args.update](param_dict, lr=args.lr)
+        optimizer=optim_map[args.update](all_params, lr=args.lr)
     else:
-        optimizer=optim_map[args.update](param_dict)
+        optimizer=optim_map[args.update](all_params)
 
     pw.info('Saving configues.')
     pw.save_configue(args)
@@ -140,7 +161,7 @@ if __name__ == "__main__":
     best_f1 = float('-inf')
     patience_count = 0
     batch_index = 0
-    normalizer=0
+    normalizer = 0
     tot_loss = 0
 
     try:
@@ -150,12 +171,16 @@ if __name__ == "__main__":
             pw.info('Epoch: {}'.format(indexs))
             pw.nvidia_memory_map()
 
-            seq_model.train()
-            for f_c, f_p, b_c, b_p, f_w, label_f, label_s in train_dataset.get_tqdm(device):
+            feature_extractor.train()
+            base_model.train()
+            crit.train()
+            for f_c, f_p, b_c, b_p, f_w, label_f, label_s in train_dataset.get_tqdm():
 
-                seq_model.zero_grad()
-                output = seq_model(f_c, f_p, b_c, b_p, f_w)
-                loss = crit(output, label_s, label_f)
+                feature_extractor.zero_grad()
+                base_model.zero_grad()
+                features = feature_extractor(f_c, f_p, b_c, b_p, f_w)
+                f, s, fs, ff, ss, fs_t, sf_t = base_model(features)
+                f_out, s_out, loss = crit(f, s, fs, ff, ss, fs_t, sf_t, label_f, label_s)
 
                 tot_loss += utils.to_scalar(loss)
                 normalizer += 1
@@ -174,21 +199,26 @@ if __name__ == "__main__":
                 current_lr = args.lr / (1 + (indexs + 1) * args.lr_decay)
                 utils.adjust_learning_rate(optimizer, current_lr)
 
-            dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
+            dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model,
+                    dev_dataset.get_tqdm())
 
             pw.add_loss_vs_batch({'dev_f1': dev_f1}, indexs, use_logger = True)
             pw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, use_logger = False)
             
             pw.info('Saving model...')
-            pw.save_checkpoint(model = seq_model, 
+            pw.save_checkpoint(model=ModelWrapper(feature_extractor, base_model),
                         is_best = (dev_f1 > best_f1), 
-                        s_dict = {'config': seq_config, 
+                        s_dict = {'feature_extractor_config': seq_config, 
+                                'tf_base_config': base_config,
                                 'gw_map': gw_map, 
                                 'c_map': c_map, 
+                                'f_map': f_map, 
+                                's_map': s_map, 
                                 'y_map': y_map})
 
             if dev_f1 > best_f1:
-                test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
+                test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model,
+                        test_dataset.get_tqdm())
                 best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
                 pw.add_loss_vs_batch({'test_f1': test_f1}, indexs, use_logger = True)
                 pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, use_logger = False)
@@ -206,20 +236,24 @@ if __name__ == "__main__":
         print(e_ins.args)
         print(e_ins)
 
-        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
+        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm())
 
         pw.add_loss_vs_batch({'dev_f1': dev_f1}, indexs, use_logger = True)
         pw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, use_logger = False)
         
         pw.info('Saving model...')
-        pw.save_checkpoint(model = seq_model, 
+        pw.save_checkpoint(model=ModelWrapper(feature_extractor, base_model),
                     is_best = (dev_f1 > best_f1), 
-                    s_dict = {'config': seq_config, 
+                    s_dict = {'feature_extractor_config': seq_config,
+                            'tf_base_config': base_config,
                             'gw_map': gw_map, 
                             'c_map': c_map, 
+                            'f_map': f_map, 
+                            's_map': s_map, 
                             'y_map': y_map})
 
-        test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
+        test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model,
+                test_dataset.get_tqdm())
         best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
         pw.add_loss_vs_batch({'test_f1': test_f1}, indexs, use_logger = True)
         pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, use_logger = False)
