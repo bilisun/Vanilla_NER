@@ -106,7 +106,8 @@ if __name__ == "__main__":
     seq_config = feature_extractor.to_params()
     feature_extractor.to(device)
 
-    base_model = TFBase(len(y_map), len(f_map), len(s_map), no_adap=args.no_adap, pairwise_type=args.pairwise_type)
+    fs_mask = get_mask(f_map, s_map, y_map)
+    base_model = TFBase(len(y_map), len(f_map), len(s_map), fs_mask, no_adap=args.no_adap, pairwise_type=args.pairwise_type)
     base_model.to(device)
 
     crit = CRFLoss(y_map)
