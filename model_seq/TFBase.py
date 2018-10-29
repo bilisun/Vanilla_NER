@@ -48,7 +48,7 @@ class TFBase(nn.Module):
         self.f = nn.Linear(dim, self.f_classes)
         self.s = nn.Linear(dim, self.s_classes)
 
-        mask = Variable(fs_mask).cuda()
+        mask = Variable(torch.Tensor(fs_mask).cuda())
         mask_t = mask.view(-1, self.s_classes).t().view(-1)
 
         # Spatio label compatibility matrices
