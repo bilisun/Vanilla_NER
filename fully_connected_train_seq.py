@@ -210,11 +210,8 @@ if __name__ == "__main__":
                         is_best = (dev_f1 > best_f1), 
                         s_dict = {'feature_extractor_config': seq_config, 
                                 'tf_base_config': base_config,
-                                'gw_map': gw_map, 
-                                'c_map': c_map, 
-                                'f_map': f_map, 
-                                's_map': s_map, 
-                                'y_map': y_map})
+                                'best_f1': best_f1,
+                                'epoch': indexs})
 
             if dev_f1 > best_f1:
                 test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model,
@@ -246,11 +243,8 @@ if __name__ == "__main__":
                     is_best = (dev_f1 > best_f1), 
                     s_dict = {'feature_extractor_config': seq_config,
                             'tf_base_config': base_config,
-                            'gw_map': gw_map, 
-                            'c_map': c_map, 
-                            'f_map': f_map, 
-                            's_map': s_map, 
-                            'y_map': y_map})
+                            'best_f1': best_f1,
+                            'epoch': indexs})
 
         test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model,
                 test_dataset.get_tqdm())
