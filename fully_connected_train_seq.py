@@ -44,7 +44,6 @@ if __name__ == "__main__":
     parser.add_argument('--seq_model', choices=['vanilla'], default='vanilla')
     parser.add_argument('--seq_rnn_unit', choices=['gru', 'lstm', 'rnn'], default='lstm')
 
-    parser.add_argument('--num_low_rank', type=int, default=5)
     parser.add_argument('--adap', dest='no_adap', action='store_false',
                         help='adaptive message passing')
     parser.add_argument('--no-adap', dest='no_adap', action='store_true',
@@ -87,8 +86,7 @@ if __name__ == "__main__":
     seq_config = feature_extractor.to_params()
     feature_extractor.to(device)
 
-    base_model = TFBase(len(y_map), len(f_map), len(s_map), args.num_low_rank, no_adap=args.no_adap,
-                        pairwise_type=args.pairwise_type)
+    base_model = TFBase(len(y_map), len(f_map), len(s_map), no_adap=args.no_adap, pairwise_type=args.pairwise_type)
     base_model.to(device)
 
     crit = CRFLoss(y_map)
