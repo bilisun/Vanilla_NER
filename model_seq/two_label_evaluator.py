@@ -34,14 +34,17 @@ class eval_batch:
         """
         update statics for f1 score.
 
-        all inputs are (seq len, batch size, classifications)
+        f_out: (max seq len, batch size, f_classes)
+        s_out: (max seq len, batch size, f_classes)
+        raw_label_f: (batch size, varying seq lens)
+        raw_label_s: (batch size, varying seq lens)
         """
 
         batches = f_out.shape[1]
 
         for seq_num in range(batches):
             correct_labels_i, total_labels_i, actual_positives_i, predicted_positives_i, true_positives_i = self.eval_instance(
-                    seq_num, f_out, s_out, raw_label_f[seq_num], raw_label_s[seq_num]
+                    f_out[:,seq_num,:], s_out[:,seq_num,:], raw_label_f[seq_num], raw_label_s[seq_num]
             )
             self.correct_labels += correct_labels_i
             self.total_labels += total_labels_i
@@ -53,18 +56,20 @@ class eval_batch:
         """
         update statics for accuracy score.
 
-        all inputs are (seq len, batch size, classifications)
+        f_out: (max seq len, batch size, f_classes)
+        s_out: (max seq len, batch size, f_classes)
+        raw_label_f: (batch size, varying seq lens)
+        raw_label_s: (batch size, varying seq lens)
         """
-        batch_decoded = torch.unbind(decoded_data, 1)
 
-        for decoded, target in zip(batch_decoded, target_data):
-            
-            # remove padding
-            length = len(target)
-            best_path = decoded[:length].numpy()
+        batches = f_out.shape[1]
 
-            self.total_labels += length
-            self.correct_labels += np.sum(np.equal(best_path, gold))
+        for seq_num in range(batches):
+            correct_labels_i, total_labels_i, _, _, _ = self.eval_instance(
+                    f_out[:,seq_num,:], s_out[:,seq_num,:], raw_label_f[seq_num], raw_label_s[seq_num]
+            )
+            self.correct_labels += correct_labels_i
+            self.total_labels += total_labels_i
 
     def f1_score(self):
         """
@@ -89,20 +94,19 @@ class eval_batch:
         accuracy = float(self.correct_labels) / self.total_labels
         return accuracy
 
-    def eval_instance(self, seq_num, f, s, fl, sl):
+    def eval_instance(self, f, s, fl, sl):
         """
-        Calculate statistics to update inner counters for one sequence position
+        Calculate statistics to update inner counters for one sequence
 
-        seq_num: Index of sequence
-        f: (max seq length, batch, f_classes), batch of fs
-        s: (max seq length, batch, s_classes), batch of ss
-        fl: (max seq length), raw labels for seq_num
-        sl: (max seq length), raw labels for seq_num
+        f: (max seq length, f_classes), sequence probabilities
+        s: (max seq length, s_classes), sequence probabilities
+        fl: (max seq length), raw labels
+        sl: (max seq length), raw labels
         """
 
         seq_len = len(fl)
-        f_classes = f.shape[2]
-        s_classes = s.shape[2]
+        f_classes = f.shape[1]
+        s_classes = s.shape[1]
 
         symb_seq = []
         expected_symb_seq = []
@@ -117,10 +121,10 @@ class eval_batch:
             for fi in range(f_classes):
                 for si in range(s_classes):
                     if (self.valid_label_mask[fi * s_classes + si] == 1 and
-                        best_p < f[i][seq_num][fi] * s[i][seq_num][si]):
+                        best_p < f[i][fi] * s[i][si]):
                         best_f = fi
                         best_s = si
-                        best_p = f[i][seq_num][fi] * s[i][seq_num][si]
+                        best_p = f[i][fi] * s[i][si]
 
             symb_seq.append(combine(self.rev_f_map[best_f], self.rev_s_map[best_s]))
             expected_symb_seq.append(combine(self.rev_f_map[fl[i]], self.rev_s_map[sl[i]]))
