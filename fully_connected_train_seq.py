@@ -14,7 +14,7 @@ from model_seq.feature_extractor import FeatureExtractor
 from model_seq.TFBase import TFBase
 from model_seq.TFCriterion import TFCriterion
 import model_seq.utils as utils
-from seq_utils import combine
+from model_seq.seq_utils import combine
 
 from torch_scope import wrapper
 
