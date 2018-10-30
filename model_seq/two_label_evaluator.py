@@ -3,6 +3,7 @@ import numpy as np
 import itertools
 
 import model_seq.utils as utils
+from seq_utils import combine, symb_seq_to_spans
 
 
 class eval_batch:
@@ -14,8 +15,10 @@ class eval_batch:
     decoder : ``torch.nn.Module``, required.
         the decoder module, which needs to contain the ``to_span()`` method.
     """
-    def __init__(self, decoder):
-        self.decoder = decoder
+    def __init__(self, valid_label_mask, f_map, s_map):
+        self.valid_label_mask = valid_label_mask
+        self.rev_f_map = {v: k for k, v in f_map.items()}
+        self.rev_s_map = {v: k for k, v in s_map.items()}
 
     def reset(self):
         """
@@ -23,36 +26,34 @@ class eval_batch:
         """
         self.correct_labels = 0
         self.total_labels = 0
-        self.gold_count = 0
-        self.guess_count = 0
-        self.overlap_count = 0
+        self.actual_positives = 0
+        self.predicted_positives = 0
+        self.true_positives = 0
 
-    def calc_f1_batch(self, outputs, target):
+    def calc_f1_batch(self, f_out, s_out, raw_label_f, raw_label_s):
         """
         update statics for f1 score.
 
-        outputs: (seq len, batch size, classifications)
-        target: (seq len, batch size, classifications)
+        all inputs are (seq len, batch size, classifications)
         """
-        batch_decoded = torch.unbind(decoded_data, 1)
 
-        for decoded, target in zip(batch_decoded, target_data):
-            length = len(target)
-            best_path = decoded[:length]
+        batches = f_out.shape[1]
 
-            correct_labels_i, total_labels_i, gold_count_i, guess_count_i, overlap_count_i = self.eval_instance(best_path.numpy(), target)
+        for seq_num in range(batches):
+            correct_labels_i, total_labels_i, actual_positives_i, predicted_positives_i, true_positives_i = self.eval_instance(
+                    seq_num, f_out, s_out, raw_label_f[seq_num], raw_label_s[seq_num]
+            )
             self.correct_labels += correct_labels_i
             self.total_labels += total_labels_i
-            self.gold_count += gold_count_i
-            self.guess_count += guess_count_i
-            self.overlap_count += overlap_count_i
+            self.actual_positives += actual_positives_i
+            self.predicted_positives += predicted_positives_i
+            self.true_positives += true_positives_i
 
-    def calc_acc_batch(self, outputs, target_data):
+    def calc_acc_batch(self, f_out, s_out, raw_label_f, raw_label_s):
         """
         update statics for accuracy score.
 
-        outputs: (seq len, batch size, classifications)
-        target: (seq len, batch size, classifications)
+        all inputs are (seq len, batch size, classifications)
         """
         batch_decoded = torch.unbind(decoded_data, 1)
 
@@ -69,10 +70,10 @@ class eval_batch:
         """
         calculate the f1 score based on the inner counter.
         """
-        if self.guess_count == 0:
+        if self.predicted_positives == 0:
             return 0.0, 0.0, 0.0, 0.0
-        precision = self.overlap_count / float(self.guess_count)
-        recall = self.overlap_count / float(self.gold_count)
+        precision = self.true_positives / float(self.predicted_positives)
+        recall = self.true_positives / float(self.actual_positives)
         if precision == 0.0 or recall == 0.0:
             return 0.0, 0.0, 0.0, 0.0
         f = 2 * (precision * recall) / (precision + recall)
@@ -83,35 +84,59 @@ class eval_batch:
         """
         calculate the accuracy score based on the inner counter.
         """
-        if 0 == self.total_labels:
+        if self.total_labels == 0:
             return 0.0
         accuracy = float(self.correct_labels) / self.total_labels
-        return accuracy        
+        return accuracy
 
-    def eval_instance(self, best_path, gold):
+    def eval_instance(self, seq_num, f, s, fl, sl):
         """
-        Calculate statics to update inner counters for one instance.
+        Calculate statistics to update inner counters for one sequence position
 
-        Parameters
-        ----------
-        best_path: required.
-            the decoded best label index pathe.
-        gold: required.
-            the golden label index pathes.
-      
+        seq_num: Index of sequence
+        f: (max seq length, batch, f_classes), batch of fs
+        s: (max seq length, batch, s_classes), batch of ss
+        fl: (max seq length), raw labels for seq_num
+        sl: (max seq length), raw labels for seq_num
         """
-        total_labels = len(best_path)
-        correct_labels = np.sum(np.equal(best_path, gold))
-        gold_chunks = self.decoder.to_spans(gold)
-        gold_count = len(gold_chunks)
 
-        guess_chunks = self.decoder.to_spans(best_path)
-        guess_count = len(guess_chunks)
+        seq_len = len(fl)
+        f_classes = f.shape[2]
+        s_classes = s.shape[2]
 
-        overlap_chunks = gold_chunks & guess_chunks
-        overlap_count = len(overlap_chunks)
+        symb_seq = []
+        expected_symb_seq = []
 
-        return correct_labels, total_labels, gold_count, guess_count, overlap_count
+        total_labels = seq_len
+        correct_labels = 0
+
+        for i in range(seq_len):
+            best_f = -1
+            best_s = -1
+            best_p = -1.0
+            for fi in range(f_classes):
+                for si in range(s_classes):
+                    if (self.valid_label_mask[fi * s_classes + si] == 1 and
+                        best_p < f[i][seq_num][fi] * s[i][seq_num][si]):
+                        best_f = fi
+                        best_s = si
+                        best_p = f[i][seq_num][fi] * s[i][seq_num][si]
+
+            symb_seq.append(combine(self.rev_f_map[best_f], self.rev_s_map[best_s]))
+            expected_symb_seq.append(combine(self.rev_f_map[fl[i]], self.rev_s_map[sl[i]]))
+
+            if symb_seq[-1] == expected_symb_seq[-1]:
+                correct_labels += 1
+
+        predicted_spans = symb_seq_to_spans(symb_seq)
+        expected_spans = symb_seq_to_spans(expected_symb_seq)
+
+        actual_positives = len(expected_spans)
+        predicted_positives = len(predicted_spans)
+        true_positives = len(predicted_spans & expected_spans)
+
+        return correct_labels, total_labels, actual_positives, predicted_positives, true_positives
+
 
 class eval_wc(eval_batch):
     """
@@ -122,8 +147,8 @@ class eval_wc(eval_batch):
     score_type : ``str``, required.
         whether the f1 score or the accuracy is needed.
     """
-    def __init__(self, score_type):
-        eval_batch.__init__(self)
+    def __init__(self, score_type, valid_label_mask, f_map, s_map):
+        eval_batch.__init__(self, valid_label_mask, f_map, s_map)
 
         if 'f' in score_type:
             self.eval_b = self.calc_f1_batch
@@ -146,10 +171,10 @@ class eval_wc(eval_batch):
         crit.eval()
         self.reset()
 
-        for f_c, f_p, b_c, b_p, f_w, label_f, label_s in dataset_loader:
+        for f_c, f_p, b_c, b_p, f_w, label_f, label_s, raw_label_f, raw_label_s in dataset_loader:
             features = feature_extractor(f_c, f_p, b_c, b_p, f_w)
             f, s, fs, ff, ss, fs_t, sf_t = base_model(features)
-            f_out, s_out, loss = crit(f, s, fs, ff, ss, fs_t, sf_t, label_f, label_s)
-            self.eval_b(f_out, s_out, label_f, label_s)
+            f_out, s_out, _ = crit(f, s, fs, ff, ss, fs_t, sf_t, label_f, label_s)
+            self.eval_b(f_out, s_out, raw_label_f, raw_label_s)
 
         return self.calc_s()

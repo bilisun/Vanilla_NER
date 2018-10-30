@@ -14,6 +14,7 @@ from model_seq.feature_extractor import FeatureExtractor
 from model_seq.TFBase import TFBase
 from model_seq.TFCriterion import TFCriterion
 import model_seq.utils as utils
+from seq_utils import combine
 
 from torch_scope import wrapper
 
@@ -31,12 +32,6 @@ class ModelWrapper(nn.Module):
     def __init__(self, extractor, base):
         self.extractor = extractor
         self.base = base
-
-
-def combine(a, b):
-    if a == 'O' and b == 'O':
-        return 'O'
-    return a + '-' + b
 
 
 def get_mask(f_map, s_map, y_map):
@@ -133,7 +128,7 @@ if __name__ == "__main__":
     crit = TFCriterion(
             args.w_temporal, args.w_spatial, args.sigma, args.only_unary, args.no_spatial
     ).cuda()
-    evaluator = eval_wc('f1')
+    evaluator = eval_wc('f1', fs_mask, f_map, s_map)
 
     pw.info('Constructing dataset')
 
@@ -173,7 +168,7 @@ if __name__ == "__main__":
             feature_extractor.train()
             base_model.train()
             crit.train()
-            for f_c, f_p, b_c, b_p, f_w, label_f, label_s in train_dataset.get_tqdm():
+            for f_c, f_p, b_c, b_p, f_w, label_f, label_s, _, _ in train_dataset.get_tqdm():
 
                 feature_extractor.zero_grad()
                 base_model.zero_grad()
