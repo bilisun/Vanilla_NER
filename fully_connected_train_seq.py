@@ -135,7 +135,7 @@ if __name__ == "__main__":
     train_dataset, test_dataset, dev_dataset = [
             FullyConnectedCRFDataset(
                 tup_data, gw_map['<\n>'], c_map[' '], c_map['\n'], f_map['<eof>'], len(f_map),
-                s_map['<eof>'], len(s_map), args.batch_size
+                s_map['<eof>'], len(s_map), args.batch_size, len(f_map), len(s_map)
             ) for tup_data in [train_data, test_data, dev_data]
     ]
 

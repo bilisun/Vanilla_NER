@@ -18,7 +18,8 @@ class FullyConnectedCRFDataset(object):
     """
     def __init__(
             self, dataset: list, w_pad: int, c_con: int, c_pad: int, f_pad: int,
-            f_size: int, s_pad: int, s_size: int, batch_size: int
+            f_size: int, s_pad: int, s_size: int, batch_size: int, f_classes: int,
+            s_classes: int
     ):
         self.w_pad = w_pad
         self.c_con = c_con
@@ -28,6 +29,9 @@ class FullyConnectedCRFDataset(object):
         self.s_pad = s_pad
         self.s_size = s_size
         self.batch_size = batch_size
+
+        self.f_classes = f_classes
+        self.s_classes = s_classes
 
         self.construct_index(dataset)
         self.shuffle()
@@ -97,7 +101,9 @@ class FullyConnectedCRFDataset(object):
          backward character indices,
          word ids,
          label 1 onehot,
-         label 2 onehot)
+         label 2 onehot,
+         raw label 1,
+         raw label 2)
         """
 
         cur_batch_size = len(batch)
@@ -127,8 +133,12 @@ class FullyConnectedCRFDataset(object):
             )
 
             tmp_batch[4].append(instance[0] + [self.w_pad] * word_padded_len_ins)
-            tmp_batch[5].append(to_onehot(instance[2] + [self.f_pad] * word_padded_len_ins))
-            tmp_batch[6].append(to_onehot(instance[3] + [self.s_pad] * word_padded_len_ins))
+            tmp_batch[5].append(
+                    to_onehot(instance[2] + [self.f_pad] * word_padded_len_ins, self.f_classes)
+            )
+            tmp_batch[6].append(
+                    to_onehot(instance[3] + [self.s_pad] * word_padded_len_ins, self.s_classes)
+            )
 
             tmp_batch[7].append(instance[2])
             tmp_batch[8].append(instance[3])
