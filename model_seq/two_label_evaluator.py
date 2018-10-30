@@ -35,7 +35,7 @@ class eval_batch:
         update statics for f1 score.
 
         f_out: (max seq len, batch size, f_classes)
-        s_out: (max seq len, batch size, f_classes)
+        s_out: (max seq len, batch size, s_classes)
         raw_label_f: (batch size, varying seq lens)
         raw_label_s: (batch size, varying seq lens)
         """
