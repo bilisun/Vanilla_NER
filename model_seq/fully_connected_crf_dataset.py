@@ -3,6 +3,7 @@ Based on Liyuan Liu's SeqDataset code
 """
 import numpy as np
 import random
+from tqdm import tqdm
 
 
 def to_onehot(indices, size):
