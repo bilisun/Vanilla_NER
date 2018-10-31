@@ -2,6 +2,7 @@
 Based on Liyuan Liu's SeqDataset code
 """
 import numpy as np
+import random
 
 
 def to_onehot(indices, size):
