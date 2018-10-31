@@ -11,12 +11,6 @@ import sys
 import itertools
 
 
-def to_onehot(indices, size):
-    onehot = np.zeros((len(indices), size))
-    onehot[np.arange(len(indices)), indices] = 1
-    return onehot
-
-
 class FullyConnectedCRFDataset(object):
     """
     Dataset for fully connected CRF
@@ -140,12 +134,8 @@ class FullyConnectedCRFDataset(object):
             )
 
             tmp_batch[4].append(instance[0] + [self.w_pad] * word_padded_len_ins)
-            tmp_batch[5].append(
-                    to_onehot(instance[2] + [self.f_pad] * word_padded_len_ins, self.f_classes)
-            )
-            tmp_batch[6].append(
-                    to_onehot(instance[3] + [self.s_pad] * word_padded_len_ins, self.s_classes)
-            )
+            tmp_batch[5].append(instance[2] + [self.f_pad] * word_padded_len_ins)
+            tmp_batch[6].append(instance[3] + [self.s_pad] * word_padded_len_ins)
 
             tmp_batch[7].append(instance[2])
             tmp_batch[8].append(instance[3])
