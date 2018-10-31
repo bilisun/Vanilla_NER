@@ -129,8 +129,8 @@ class FullyConnectedCRFDataset(object):
             tmp_batch[0].append(instance[1] + [self.c_pad] * char_padded_len_ins)
             tmp_batch[2].append(instance[1][::-1] + [self.c_pad] * char_padded_len_ins)
 
-            tmp_pf = list(itertools.accumulate(instance[3] + [0] * word_padded_len_ins))
-            tmp_pb = list(itertools.accumulate(instance[3][::-1]))[::-1] + [1] * word_padded_len_ins
+            tmp_pf = list(itertools.accumulate(instance[4] + [0] * word_padded_len_ins))
+            tmp_pb = list(itertools.accumulate(instance[4][::-1]))[::-1] + [1] * word_padded_len_ins
 
             tmp_batch[1].append(
                     [(word_end - 1) * cur_batch_size + instance_ind for word_end in tmp_pf]
