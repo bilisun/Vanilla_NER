@@ -78,7 +78,7 @@ if __name__ == "__main__":
         embedding_array.append([random.random() * bias - bias for tup in embedding_array[0]])
 
     c_map = {v[0]:k for k, v in enumerate(c_count.items()) if v[1] > args.threshold}
-    c_map['<unk>'] = len(c_map)
+    c_map['<unk>'] = len(c_count)
 
     f_map['<eof>'] = len(f_map)
     s_map['<eof>'] = len(s_map)
