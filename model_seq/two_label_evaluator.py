@@ -3,7 +3,7 @@ import numpy as np
 import itertools
 
 import model_seq.utils as utils
-from seq_utils import combine, symb_seq_to_spans
+from model_seq.seq_utils import combine, symb_seq_to_spans
 
 
 class eval_batch:
