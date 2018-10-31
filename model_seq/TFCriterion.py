@@ -118,7 +118,7 @@ class TFCriterion(nn.Module, MessagePassing):
         flat_f_labels = f_labels.view(-1, f_classes)
         flat_s_labels = s_labels.view(-1, s_classes)
 
-        loss = self.cross_loss(cur_f, flat_f_labels) + self.cross_loss(cur_s, flat_s_labels)
+        loss = self.cross_loss(orig_f, flat_f_labels) + self.cross_loss(orig_s, flat_s_labels)
 
         flat_fs = fs.view(-1, f_classes, s_classes)
         flat_ff = ff.view(-1, f_classes, f_classes)
