@@ -141,7 +141,8 @@ class FullyConnectedCRFDataset(object):
             tmp_batch[8].append(instance[3])
 
         # Tensor shapes are now (number of chars or words, batch size)
-        tbt = [torch.LongTensor(v).transpose(0, 1).contiguous() for v in tmp_batch[0:7]]
+        tbt = ([torch.LongTensor(v).transpose(0, 1).contiguous() for v in tmp_batch[0:5]] +
+               [torch.LongTensor(v) for v in tmp_batch[5:7]])
 
         tbt[1] = tbt[1].view(-1)
         tbt[3] = tbt[3].view(-1)
