@@ -4,6 +4,8 @@ Based on Liyuan Liu's SeqDataset code
 import numpy as np
 import random
 from tqdm import tqdm
+import sys
+import itertools
 
 
 def to_onehot(indices, size):
