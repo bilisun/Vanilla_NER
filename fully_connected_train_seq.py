@@ -141,7 +141,7 @@ if __name__ == "__main__":
 
     pw.info('Constructing optimizer')
 
-    all_params = feature_extractor.parameters() + base_model.parameters()
+    all_params = list(feature_extractor.parameters()) + list(base_model.parameters())
     optim_map = {'Adam' : optim.Adam, 'Adagrad': optim.Adagrad, 'Adadelta': optim.Adadelta, 'SGD': functools.partial(optim.SGD, momentum=0.9)}
     if args.lr > 0:
         optimizer=optim_map[args.update](all_params, lr=args.lr)
