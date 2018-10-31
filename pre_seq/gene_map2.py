@@ -80,7 +80,7 @@ if __name__ == "__main__":
     filtered_c = [k for k, v in c_count.items() if v > args.threshold]
     c_map = {}
     for i, c in enumerate(filtered_c):
-        c_map['c'] = i
+        c_map[c] = i
     c_map['<unk>'] = len(c_map)
 
     f_map['<eof>'] = len(f_map)
