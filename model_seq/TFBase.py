@@ -92,7 +92,7 @@ class TFBase(nn.Module):
         sf_t: (sequence length, batch size, s classes, f classes)
         """
 
-        seq_length = features.shape[1]
+        seq_length = features.shape[0]
         hidden_dim = features.shape[2]
         seq_features = features.view(-1, hidden_dim)
 

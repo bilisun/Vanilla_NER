@@ -145,4 +145,4 @@ class FeatureExtractor(nn.Module):
 
         rnn_out, _ = self.word_rnn(rnn_in)
 
-        return rnn_out
+        return rnn_out.view(self.word_seq_length, self.batch_size, -1)

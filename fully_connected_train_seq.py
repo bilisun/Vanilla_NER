@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
     fs_mask = get_mask(f_map, s_map, y_map)
     base_model = TFBase(
-            len(y_map), len(f_map), len(s_map), fs_mask, no_adap=args.no_adap,
+            args.seq_y_hid, len(f_map), len(s_map), fs_mask, no_adap=args.no_adap,
             pairwise_type=args.pairwise_type
     ).cuda()
     base_config = base_model.to_params()
