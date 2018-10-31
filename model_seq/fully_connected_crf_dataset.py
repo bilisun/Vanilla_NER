@@ -120,7 +120,7 @@ class FullyConnectedCRFDataset(object):
         for instance_ind in range(cur_batch_size):
             instance = batch[instance_ind]
 
-            char_padded_len_ins = char_len - len(instance[1])
+            char_padded_len_ins = char_padded_len - len(instance[1])
             word_padded_len_ins = word_padded_len - len(instance[0])
 
             tmp_batch[0].append(instance[1] + [self.c_pad] * char_padded_len_ins)
