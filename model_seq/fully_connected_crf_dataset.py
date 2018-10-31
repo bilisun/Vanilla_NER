@@ -2,6 +2,8 @@
 Based on Liyuan Liu's SeqDataset code
 """
 import torch
+from torch.autograd import Variable
+
 import numpy as np
 import random
 from tqdm import tqdm
