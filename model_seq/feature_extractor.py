@@ -100,7 +100,6 @@ class FeatureExtractor(nn.Module):
         utils.init_lstm(self.char_bw)
         utils.init_lstm(self.word_rnn)
         utils.init_linear(self.char_seq)
-        self.crf.rand_init()
 
     def forward(self, f_c, f_p, b_c, b_p, f_w):
         """
