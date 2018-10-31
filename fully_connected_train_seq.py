@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
     feature_extractor = FeatureExtractor(
             len(c_map), args.seq_c_dim, args.seq_c_hid, args.seq_c_layer, len(gw_map),
-            args.seq_w_dim, args.seq_w_hid, args.seq_w_layer, len(y_map), args.seq_droprate,
+            args.seq_w_dim, args.seq_w_hid, args.seq_w_layer, args.seq_droprate,
             unit=args.seq_rnn_unit
     ).cuda()
     feature_extractor.rand_init()
