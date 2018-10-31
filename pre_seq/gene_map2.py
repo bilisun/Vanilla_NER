@@ -77,8 +77,11 @@ if __name__ == "__main__":
         gw_map[k] = len(gw_map)
         embedding_array.append([random.random() * bias - bias for tup in embedding_array[0]])
 
-    c_map = {v[0]:k for k, v in enumerate(c_count.items()) if v[1] > args.threshold}
-    c_map['<unk>'] = len(c_count)
+    filtered_c = [k for k, v in c_count.items() if v > args.threshold]
+    c_map = {}
+    for i, c in enumerate(filtered_c):
+        c_map['c'] = i
+    c_map['<unk>'] = len(c_map)
 
     f_map['<eof>'] = len(f_map)
     s_map['<eof>'] = len(s_map)
