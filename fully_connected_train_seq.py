@@ -30,6 +30,8 @@ import numpy as np
 # Hack to save multiple models
 class ModelWrapper(nn.Module):
     def __init__(self, extractor, base):
+        super(ModelWrapper, self).__init__()
+
         self.extractor = extractor
         self.base = base
 

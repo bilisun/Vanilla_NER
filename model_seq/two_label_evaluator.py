@@ -100,8 +100,8 @@ class eval_batch:
 
         f: (max seq length, f_classes), sequence probabilities
         s: (max seq length, s_classes), sequence probabilities
-        fl: (max seq length), raw labels
-        sl: (max seq length), raw labels
+        fl: (seq length), raw labels
+        sl: (seq length), raw labels
         """
 
         seq_len = len(fl)
@@ -121,10 +121,10 @@ class eval_batch:
             for fi in range(f_classes):
                 for si in range(s_classes):
                     if (self.valid_label_mask[fi * s_classes + si] == 1 and
-                        best_p < f[i][fi] * s[i][si]):
+                        best_p < f.data[i][fi] * s.data[i][si]):
                         best_f = fi
                         best_s = si
-                        best_p = f[i][fi] * s[i][si]
+                        best_p = f.data[i][fi] * s.data[i][si]
 
             symb_seq.append(combine(self.rev_f_map[best_f], self.rev_s_map[best_s]))
             expected_symb_seq.append(combine(self.rev_f_map[fl[i]], self.rev_s_map[sl[i]]))
