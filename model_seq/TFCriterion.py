@@ -90,8 +90,8 @@ class TFCriterion(nn.Module, MessagePassing):
         fs_t: (sequence length, batch size, f classes, s classes)
         sf_t: (sequence length, batch size, s classes, f classes)
 
-        f_labels: (sequence length, batch size, f classes)
-        s_labels: (sequence length, batch size, s classes)
+        f_labels: (batch size, sequence length)
+        s_labels: (batch size, sequence length)
         evaluate: If True, multiple message passing iterations, otherwise 1 for training
 
         f_out: (sequence length, batch size, f classes)
@@ -116,10 +116,7 @@ class TFCriterion(nn.Module, MessagePassing):
         prev_f = orig_f.clone()
         prev_s = orig_s.clone()
 
-        flat_f_labels = f_labels.view(-1, f_classes)
-        flat_s_labels = s_labels.view(-1, s_classes)
-
-        loss = self.f_loss(orig_f, flat_f_labels) + self.s_loss(orig_s, flat_s_labels)
+        loss = self.f_loss(orig_f, f_labels) + self.s_loss(orig_s, s_labels)
 
         flat_fs = fs.view(-1, f_classes, s_classes)
         flat_ff = ff.view(-1, f_classes, f_classes)
@@ -158,8 +155,8 @@ class TFCriterion(nn.Module, MessagePassing):
                 prev_f = nn.Softmax(dim=1)(next_f)
                 prev_s = nn.Softmax(dim=1)(next_s)
 
-            loss += self.f_loss(next_f, flat_f_labels)
-            loss += self.s_loss(next_s, flat_s_labels)
+            loss += self.f_loss(next_f, f_labels)
+            loss += self.s_loss(next_s, s_labels)
 
         f_out = prev_f.view(seq_len, -1, f_classes)
         s_out = prev_s.view(seq_len, -1, s_classes)
