@@ -41,8 +41,8 @@ class FeatureExtractor(nn.Module):
 
         rnnunit_map = {'rnn': nn.RNN, 'lstm': nn.LSTM, 'gru': nn.GRU}
 
-        self.char_embed = nn.Embedding(c_num, c_dim)
-        self.word_embed = nn.Embedding(w_num, w_dim)
+        self.char_embed = nn.Embedding(c_num, c_dim).cuda()
+        self.word_embed = nn.Embedding(w_num, w_dim).cuda()
 
         self.char_seq = nn.Linear(c_hidden * 2, w_dim)
 
