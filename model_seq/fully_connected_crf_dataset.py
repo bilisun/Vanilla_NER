@@ -29,6 +29,7 @@ class FullyConnectedCRFDataset(object):
         self.f_size = f_size
         self.s_pad = s_pad
         self.s_size = s_size
+        self.y_pad = y_pad
         self.batch_size = batch_size
 
         self.f_classes = f_classes
