@@ -214,7 +214,7 @@ if __name__ == "__main__":
                 test_f1, test_pre, test_rec, test_acc, test_f_acc, test_s_acc = evaluator.calc_score(feature_extractor,
                         base_model, crit, test_dataset.get_tqdm())
                 best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
-                pw.add_loss_vs_batch({'test_f1': test_f1, 'test_f_acc': test_file, 'test_s_acc': test_s_acc}, indexs, use_logger = True)
+                pw.add_loss_vs_batch({'test_f1': test_f1, 'test_f_acc': test_f_acc, 'test_s_acc': test_s_acc}, indexs, use_logger = True)
                 pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, use_logger = False)
                 patience_count = 0
             else:
@@ -246,7 +246,7 @@ if __name__ == "__main__":
         test_f1, test_pre, test_rec, test_acc, test_f_acc, test_s_acc = evaluator.calc_score(feature_extractor, base_model,
                 crit, test_dataset.get_tqdm())
         best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
-        pw.add_loss_vs_batch({'test_f1': test_f1, 'test_f_acc': test_file, 'test_s_acc': test_s_acc}, indexs, use_logger = True)
+        pw.add_loss_vs_batch({'test_f1': test_f1, 'test_f_acc': test_f_acc, 'test_s_acc': test_s_acc}, indexs, use_logger = True)
         pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, use_logger = False)
 
     pw.close()
