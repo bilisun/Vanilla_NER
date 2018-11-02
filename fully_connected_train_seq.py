@@ -138,7 +138,7 @@ if __name__ == "__main__":
     train_dataset, test_dataset, dev_dataset = [
             FullyConnectedCRFDataset(
                 tup_data, gw_map['<\n>'], c_map[' '], c_map['\n'], f_map['<eof>'], len(f_map),
-                s_map['<eof>'], len(s_map), args.batch_size, len(f_map), len(s_map)
+                s_map['<eof>'], len(s_map), y_map['<eof>'], args.batch_size, len(f_map), len(s_map)
             ) for tup_data in [train_data, test_data, dev_data]
     ]
 
@@ -171,13 +171,13 @@ if __name__ == "__main__":
             feature_extractor.train()
             base_model.train()
             crit.train()
-            for f_c, f_p, b_c, b_p, f_w, label_f, label_s, mask, _, _ in train_dataset.get_tqdm():
+            for f_c, f_p, b_c, b_p, f_w, label_f, label_s, label_y, mask, _, _ in train_dataset.get_tqdm():
 
                 feature_extractor.zero_grad()
                 base_model.zero_grad()
                 features = feature_extractor(f_c, f_p, b_c, b_p, f_w)
                 f, s, fs, ff, ss, fs_t, sf_t = base_model(features)
-                f_out, s_out, loss = crit(f, s, fs, ff, ss, fs_t, sf_t, label_f, label_s, mask)
+                f_out, s_out, loss = crit(f, s, fs, ff, ss, fs_t, sf_t, label_f, label_s, label_y, mask)
 
                 tot_loss += utils.to_scalar(loss)
                 normalizer += 1

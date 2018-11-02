@@ -82,15 +82,16 @@ class TFCriterion(nn.Module, MessagePassing):
         self.f_loss = nn.CrossEntropyLoss(reduce=False)
         self.s_loss = nn.CrossEntropyLoss(reduce=False)
 
-        # self.c_to_f_index = np.array([-1] * len(y_map))
-        # self.c_to_s_index = np.array([-1] * len(y_map))
-        # for label, index in y_map.items():
-        #     lf, ls = split_label(label)
-        #     self.c_to_f_index[index] = f_map[lf]
-        #     self.c_to_s_index[index] = s_map[ls]
+        self.y_to_f_index = np.array([-1] * len(y_map))
+        self.s_to_f_index = np.array([-1] * len(y_map))
+        for label, index in y_map.items():
+            lf, ls = split_label(label)
+            self.y_to_f_index[index] = f_map[lf]
+            self.s_to_f_index[index] = s_map[ls]
 
+        self.structured_loss = nn.NLLLoss(reduce=False)
 
-    def forward(self, f, s, fs, ff, ss, fs_t, sf_t, f_labels, s_labels, mask, evaluate=False):
+    def forward(self, f, s, fs, ff, ss, fs_t, sf_t, f_labels, s_labels, y_labels, mask, evaluate=False):
         """
         f: (sequence length, batch size, f classes),
         s: (sequence length, batch size, s classes),
@@ -102,6 +103,7 @@ class TFCriterion(nn.Module, MessagePassing):
 
         f_labels: (sequence length, batch size)
         s_labels: (sequence length, batch size)
+        y_labels: (sequence length, batch size)
         mask: (sequence length, batch size)
         evaluate: If True, multiple message passing iterations, otherwise 1 for training
 
@@ -126,14 +128,22 @@ class TFCriterion(nn.Module, MessagePassing):
 
         flat_f_labels = f_labels.view(-1)
         flat_s_labels = s_labels.view(-1)
+        flat_y_labels = y_labels.view(-1)
 
         flat_mask = mask.view(-1)
 
         prev_f = orig_f.clone()
         prev_s = orig_s.clone()
 
+        # Unary loss
         loss = (self.f_loss(orig_f, flat_f_labels).masked_select(flat_mask).mean() +
                 self.s_loss(orig_s, flat_s_labels).masked_select(flat_mask).mean())
+
+        # Structured loss
+        fy = torch.index_select(nn.Softmax(dim=1)(orig_f), dim=1, index=self.y_to_f_index)
+        sy = torch.index_select(nn.Softmax(dim=1)(orig_s), dim=1, index=self.s_to_f_index)
+        y = fy * sy
+        loss += self.structured_loss(y, flat_y_labels).masked_select(flat_mask).mean()
 
         flat_fs = fs.view(-1, f_classes, s_classes)
         flat_ff = ff.view(-1, f_classes, f_classes)

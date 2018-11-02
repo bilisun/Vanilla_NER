@@ -12,7 +12,7 @@ import functools
 from gene_map2 import split_label
 
 
-def encode_dataset(input_file, gw_map, c_map, f_map, s_map):
+def encode_dataset(input_file, gw_map, c_map, f_map, s_map, y_map):
 
     gw_unk = gw_map['<unk>']
     c_con = c_map[' ']
@@ -20,7 +20,7 @@ def encode_dataset(input_file, gw_map, c_map, f_map, s_map):
 
     dataset = list()
 
-    tmpw_gw, tmpc, tmpf, tmps = list(), list(), list(), list()
+    tmpw_gw, tmpc, tmpf, tmps, tmpy = list(), list(), list(), list(), list()
 
     with open(input_file, 'r') as fin:
         for line in fin:
@@ -35,9 +35,10 @@ def encode_dataset(input_file, gw_map, c_map, f_map, s_map):
                 tmpf.append(f_map[a])
                 tmps.append(s_map[b])
                 tmpc.append([c_map.get(tup, c_unk) for tup in line[0]])
+                tmpy.append(y_map[line[-1]])
 
     if len(tmpw_gw) > 0:
-        dataset.append([tmpw_gw, tmpc, tmpf, tmps])
+        dataset.append([tmpw_gw, tmpc, tmpf, tmps, tmpy])
 
     return dataset
 
@@ -56,9 +57,9 @@ if __name__ == "__main__":
         name_list = ['gw_map', 'c_map', 'f_map', 's_map', 'y_map', 'emb_array']
         gw_map, c_map, f_map, s_map, y_map, emb_array = [p_data[tup] for tup in name_list]
 
-    train_dataset = encode_dataset(args.train_file, gw_map, c_map, f_map, s_map)
-    test_dataset = encode_dataset(args.test_file, gw_map, c_map, f_map, s_map)
-    dev_dataset = encode_dataset(args.dev_file, gw_map, c_map, f_map, s_map)
+    train_dataset = encode_dataset(args.train_file, gw_map, c_map, f_map, s_map, y_map)
+    test_dataset = encode_dataset(args.test_file, gw_map, c_map, f_map, s_map, y_map)
+    dev_dataset = encode_dataset(args.dev_file, gw_map, c_map, f_map, s_map, y_map)
 
     with open(args.output_file, 'wb') as f:
         pickle.dump({'gw_map': gw_map, 'c_map': c_map, 'f_map': f_map, 's_map': s_map, 'y_map': y_map,
