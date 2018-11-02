@@ -117,7 +117,7 @@ if __name__ == "__main__":
             unit=args.seq_rnn_unit
     ).cuda()
     feature_extractor.rand_init()
-    feature_extractor.load_pretrained_word_embedding(torch.FloatTensor(emb_array))
+    feature_extractor.load_pretrained_word_embedding(torch.FloatTensor(emb_array).cuda())
     seq_config = feature_extractor.to_params()
 
     fs_mask = get_mask(f_map, s_map, y_map)
