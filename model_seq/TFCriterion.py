@@ -4,6 +4,8 @@ from torch.autograd import Variable
 import math
 import numpy as np
 
+from pre_seq.gene_map2 import split_label
+
 
 def gaussian_kernel(t1, t2, sigma):
     return math.exp(-(float(t1 - t2) * (t1 - t2)) / (2 * self.sigma * self.sigma))
