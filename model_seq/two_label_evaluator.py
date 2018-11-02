@@ -30,6 +30,9 @@ class eval_batch:
         self.predicted_positives = 0
         self.true_positives = 0
 
+        self.f_correct = 0
+        self.s_correct = 0
+
     def calc_f1_batch(self, f_out, s_out, raw_label_f, raw_label_s):
         """
         update statics for f1 score.
@@ -43,7 +46,7 @@ class eval_batch:
         batches = f_out.shape[1]
 
         for seq_num in range(batches):
-            correct_labels_i, total_labels_i, actual_positives_i, predicted_positives_i, true_positives_i = self.eval_instance(
+            correct_labels_i, total_labels_i, actual_positives_i, predicted_positives_i, true_positives_i, f_i, s_i = self.eval_instance(
                     f_out[:,seq_num,:], s_out[:,seq_num,:], raw_label_f[seq_num], raw_label_s[seq_num]
             )
             self.correct_labels += correct_labels_i
@@ -51,6 +54,8 @@ class eval_batch:
             self.actual_positives += actual_positives_i
             self.predicted_positives += predicted_positives_i
             self.true_positives += true_positives_i
+            self.f_correct += f_i
+            self.s_correct += s_i
 
     def calc_acc_batch(self, f_out, s_out, raw_label_f, raw_label_s):
         """
@@ -65,11 +70,13 @@ class eval_batch:
         batches = f_out.shape[1]
 
         for seq_num in range(batches):
-            correct_labels_i, total_labels_i, _, _, _ = self.eval_instance(
+            correct_labels_i, total_labels_i, _, _, _, f_i, s_i = self.eval_instance(
                     f_out[:,seq_num,:], s_out[:,seq_num,:], raw_label_f[seq_num], raw_label_s[seq_num]
             )
             self.correct_labels += correct_labels_i
             self.total_labels += total_labels_i
+            self.f_correct += f_i
+            self.s_correct += s_i
 
     def f1_score(self):
         """
@@ -83,7 +90,9 @@ class eval_batch:
             return 0.0, 0.0, 0.0, 0.0
         f = 2 * (precision * recall) / (precision + recall)
         accuracy = float(self.correct_labels) / self.total_labels
-        return f, precision, recall, accuracy
+        f_accuracy = float(self.f_correct) / self.total_labels
+        s_accuracy = float(self.s_correct) / self.total_labels
+        return f, precision, recall, accuracy, f_accuracy, s_accuracy
 
     def acc_score(self):
         """
@@ -114,6 +123,12 @@ class eval_batch:
         total_labels = seq_len
         correct_labels = 0
 
+        _, f_max_indices = torch.max(f, dim=1)
+        _, s_max_indices = torch.max(s, dim=1)
+
+        f_correct = 0
+        s_correct = 0
+
         for i in range(seq_len):
             best_f = -1
             best_s = -1
@@ -132,6 +147,11 @@ class eval_batch:
             if symb_seq[-1] == expected_symb_seq[-1]:
                 correct_labels += 1
 
+            if f_max_indices.data[i] == fl[i]:
+                f_correct += 1
+            if s_max_indices.data[i] == sl[i]:
+                s_correct += 1
+
         predicted_spans = symb_seq_to_spans(symb_seq)
         expected_spans = symb_seq_to_spans(expected_symb_seq)
 
@@ -139,7 +159,8 @@ class eval_batch:
         predicted_positives = len(predicted_spans)
         true_positives = len(predicted_spans & expected_spans)
 
-        return correct_labels, total_labels, actual_positives, predicted_positives, true_positives
+        return (correct_labels, total_labels, actual_positives, predicted_positives, true_positives,
+                f_correct, s_correct)
 
 
 class eval_wc(eval_batch):
@@ -175,7 +196,7 @@ class eval_wc(eval_batch):
         crit.eval()
         self.reset()
 
-        for f_c, f_p, b_c, b_p, f_w, label_f, label_s, raw_label_f, raw_label_s in dataset_loader:
+        for f_c, f_p, b_c, b_p, f_w, label_f, label_s, _, raw_label_f, raw_label_s in dataset_loader:
             features = feature_extractor(f_c, f_p, b_c, b_p, f_w)
             f, s, fs, ff, ss, fs_t, sf_t = base_model(features)
             f_out, s_out, _ = crit(f, s, fs, ff, ss, fs_t, sf_t, label_f, label_s)

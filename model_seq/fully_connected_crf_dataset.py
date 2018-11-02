@@ -112,7 +112,7 @@ class FullyConnectedCRFDataset(object):
         char_padded_len = max([len(tup[1]) for tup in batch])
         word_padded_len = max([len(tup[0]) for tup in batch])
 
-        tmp_batch =  [list() for ind in range(9)]
+        tmp_batch =  [list() for ind in range(10)]
 
         for instance_ind in range(cur_batch_size):
             instance = batch[instance_ind]
@@ -136,14 +136,16 @@ class FullyConnectedCRFDataset(object):
             tmp_batch[4].append(instance[0] + [self.w_pad] * word_padded_len_ins)
             tmp_batch[5].append(instance[2] + [self.f_pad] * word_padded_len_ins)
             tmp_batch[6].append(instance[3] + [self.s_pad] * word_padded_len_ins)
+            tmp_batch[7].append([1] * len(instance[2]) + [0] * word_padded_len_ins)
 
-            tmp_batch[7].append(instance[2])
-            tmp_batch[8].append(instance[3])
+            tmp_batch[8].append(instance[2])
+            tmp_batch[9].append(instance[3])
 
         # Tensor shapes are now (number of chars or words, batch size)
-        tbt = [torch.LongTensor(v).transpose(0, 1).contiguous() for v in tmp_batch[0:7]]
+        tbt = ([torch.LongTensor(v).transpose(0, 1).contiguous() for v in tmp_batch[0:7]] +
+               [torch.ByteTensor(tmp_batch[7]).transpose(0, 1).contiguous()])
 
         tbt[1] = tbt[1].view(-1)
         tbt[3] = tbt[3].view(-1)
 
-        return [Variable(ten.cuda()) for ten in tbt] + [tmp_batch[7], tmp_batch[8]]
+        return [Variable(ten.cuda()) for ten in tbt] + [tmp_batch[8], tmp_batch[9]]

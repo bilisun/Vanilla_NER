@@ -128,7 +128,8 @@ if __name__ == "__main__":
     base_config = base_model.to_params()
 
     crit = TFCriterion(
-            args.w_temporal, args.w_spatial, args.sigma, args.only_unary, args.no_spatial
+            args.w_temporal, args.w_spatial, args.sigma, args.only_unary, args.no_spatial,
+            y_map, f_map, s_map
     ).cuda()
     evaluator = eval_wc('f1', fs_mask, f_map, s_map)
 
@@ -170,13 +171,13 @@ if __name__ == "__main__":
             feature_extractor.train()
             base_model.train()
             crit.train()
-            for f_c, f_p, b_c, b_p, f_w, label_f, label_s, _, _ in train_dataset.get_tqdm():
+            for f_c, f_p, b_c, b_p, f_w, label_f, label_s, mask, _, _ in train_dataset.get_tqdm():
 
                 feature_extractor.zero_grad()
                 base_model.zero_grad()
                 features = feature_extractor(f_c, f_p, b_c, b_p, f_w)
                 f, s, fs, ff, ss, fs_t, sf_t = base_model(features)
-                f_out, s_out, loss = crit(f, s, fs, ff, ss, fs_t, sf_t, label_f, label_s)
+                f_out, s_out, loss = crit(f, s, fs, ff, ss, fs_t, sf_t, label_f, label_s, mask)
 
                 tot_loss += utils.to_scalar(loss)
                 normalizer += 1
@@ -195,10 +196,10 @@ if __name__ == "__main__":
                 current_lr = args.lr / (1 + (indexs + 1) * args.lr_decay)
                 utils.adjust_learning_rate(optimizer, current_lr)
 
-            dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(feature_extractor, base_model,
+            dev_f1, dev_pre, dev_rec, dev_acc, dev_f_acc, dev_s_acc = evaluator.calc_score(feature_extractor, base_model,
                     crit, dev_dataset.get_tqdm())
 
-            pw.add_loss_vs_batch({'dev_f1': dev_f1}, indexs, use_logger = True)
+            pw.add_loss_vs_batch({'dev_f1': dev_f1, 'dev_f_acc': dev_f_acc, 'dev_s_acc': dev_s_acc}, indexs, use_logger = True)
             pw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, use_logger = False)
             
             pw.info('Saving model...')
@@ -210,10 +211,10 @@ if __name__ == "__main__":
                                 'epoch': indexs})
 
             if dev_f1 > best_f1:
-                test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(feature_extractor,
+                test_f1, test_pre, test_rec, test_acc, test_f_acc, test_s_acc = evaluator.calc_score(feature_extractor,
                         base_model, crit, test_dataset.get_tqdm())
                 best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
-                pw.add_loss_vs_batch({'test_f1': test_f1}, indexs, use_logger = True)
+                pw.add_loss_vs_batch({'test_f1': test_f1, 'test_f_acc': test_file, 'test_s_acc': test_s_acc}, indexs, use_logger = True)
                 pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, use_logger = False)
                 patience_count = 0
             else:
@@ -229,9 +230,9 @@ if __name__ == "__main__":
         print(e_ins.args)
         print(e_ins)
 
-        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(feature_extractor, base_model, crit, dev_dataset.get_tqdm())
+        dev_f1, dev_pre, dev_rec, dev_acc, dev_f_acc, dev_s_acc = evaluator.calc_score(feature_extractor, base_model, crit, dev_dataset.get_tqdm())
 
-        pw.add_loss_vs_batch({'dev_f1': dev_f1}, indexs, use_logger = True)
+        pw.add_loss_vs_batch({'dev_f1': dev_f1, 'dev_f_acc': dev_f_acc, 'dev_s_acc': dev_s_acc}, indexs, use_logger = True)
         pw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, use_logger = False)
         
         pw.info('Saving model...')
@@ -242,10 +243,10 @@ if __name__ == "__main__":
                             'best_f1': best_f1,
                             'epoch': indexs})
 
-        test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(feature_extractor, base_model,
+        test_f1, test_pre, test_rec, test_acc, test_f_acc, test_s_acc = evaluator.calc_score(feature_extractor, base_model,
                 crit, test_dataset.get_tqdm())
         best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
-        pw.add_loss_vs_batch({'test_f1': test_f1}, indexs, use_logger = True)
+        pw.add_loss_vs_batch({'test_f1': test_f1, 'test_f_acc': test_file, 'test_s_acc': test_s_acc}, indexs, use_logger = True)
         pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, use_logger = False)
 
     pw.close()

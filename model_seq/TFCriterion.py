@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import math
+import numpy as np
 
 
 def gaussian_kernel(t1, t2, sigma):
@@ -66,7 +67,8 @@ class TFCriterion(nn.Module, MessagePassing):
     """
     Implements mean field approximation message passing
     """
-    def __init__(self, w_temporal, w_spatial, sigma, only_unary, no_spatial):
+    def __init__(self, w_temporal, w_spatial, sigma, only_unary, no_spatial, y_map,
+                 f_map, s_map):
         MessagePassing.__init__(self, sigma)
         nn.Module.__init__(self)
 
@@ -77,10 +79,18 @@ class TFCriterion(nn.Module, MessagePassing):
         self.only_unary = only_unary
         self.no_spatial = no_spatial
 
-        self.f_loss = nn.CrossEntropyLoss()
-        self.s_loss = nn.CrossEntropyLoss()
+        self.f_loss = nn.CrossEntropyLoss(reduction='none')
+        self.s_loss = nn.CrossEntropyLoss(reduction='none')
 
-    def forward(self, f, s, fs, ff, ss, fs_t, sf_t, f_labels, s_labels, evaluate=False):
+        # self.c_to_f_index = np.array([-1] * len(y_map))
+        # self.c_to_s_index = np.array([-1] * len(y_map))
+        # for label, index in y_map.items():
+        #     lf, ls = split_label(label)
+        #     self.c_to_f_index[index] = f_map[lf]
+        #     self.c_to_s_index[index] = s_map[ls]
+
+
+    def forward(self, f, s, fs, ff, ss, fs_t, sf_t, f_labels, s_labels, mask, evaluate=False):
         """
         f: (sequence length, batch size, f classes),
         s: (sequence length, batch size, s classes),
@@ -92,6 +102,7 @@ class TFCriterion(nn.Module, MessagePassing):
 
         f_labels: (sequence length, batch size)
         s_labels: (sequence length, batch size)
+        mask: (sequence length, batch size)
         evaluate: If True, multiple message passing iterations, otherwise 1 for training
 
         f_out: (sequence length, batch size, f classes)
@@ -116,10 +127,13 @@ class TFCriterion(nn.Module, MessagePassing):
         flat_f_labels = f_labels.view(-1)
         flat_s_labels = s_labels.view(-1)
 
+        flat_mask = mask.view(-1)
+
         prev_f = orig_f.clone()
         prev_s = orig_s.clone()
 
-        loss = self.f_loss(orig_f, flat_f_labels) + self.s_loss(orig_s, flat_s_labels)
+        loss = (self.f_loss(orig_f, flat_f_labels).masked_select(flat_mask).mean() +
+                self.s_loss(orig_s, flat_s_labels).masked_select(flat_mask).mean())
 
         flat_fs = fs.view(-1, f_classes, s_classes)
         flat_ff = ff.view(-1, f_classes, f_classes)
@@ -158,8 +172,8 @@ class TFCriterion(nn.Module, MessagePassing):
                 prev_f = nn.Softmax(dim=1)(next_f)
                 prev_s = nn.Softmax(dim=1)(next_s)
 
-            loss += self.f_loss(next_f, flat_f_labels)
-            loss += self.s_loss(next_s, flat_s_labels)
+            loss += self.f_loss(next_f, flat_f_labels).masked_select(flat_mask).mean()
+            loss += self.s_loss(next_s, flat_s_labels).masked_select(flat_mask).mean()
 
         f_out = prev_f.view(seq_len, -1, f_classes)
         s_out = prev_s.view(seq_len, -1, s_classes)
