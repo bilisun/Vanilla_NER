@@ -113,7 +113,7 @@ class FullyConnectedCRFDataset(object):
         char_padded_len = max([len(tup[1]) for tup in batch])
         word_padded_len = max([len(tup[0]) for tup in batch])
 
-        tmp_batch =  [list() for ind in range(10)]
+        tmp_batch =  [list() for ind in range(11)]
 
         for instance_ind in range(cur_batch_size):
             instance = batch[instance_ind]
