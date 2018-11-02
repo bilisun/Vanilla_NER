@@ -85,11 +85,14 @@ class TFCriterion(nn.Module, MessagePassing):
         self.s_loss = nn.CrossEntropyLoss(reduce=False)
 
         self.y_to_f_index = np.array([-1] * len(y_map))
-        self.s_to_f_index = np.array([-1] * len(y_map))
+        self.y_to_s_index = np.array([-1] * len(y_map))
         for label, index in y_map.items():
             lf, ls = split_label(label)
             self.y_to_f_index[index] = f_map[lf]
-            self.s_to_f_index[index] = s_map[ls]
+            self.y_to_s_index[index] = s_map[ls]
+
+        self.y_to_f_index = torch.from_numpy(self.y_to_f_index).long().cuda()
+        self.y_to_s_index = torch.from_numpy(self.y_to_s_index).long().cuda()
 
         self.structured_loss = nn.NLLLoss(reduce=False)
 
@@ -143,7 +146,7 @@ class TFCriterion(nn.Module, MessagePassing):
 
         # Structured loss
         fy = torch.index_select(nn.Softmax(dim=1)(orig_f), dim=1, index=self.y_to_f_index)
-        sy = torch.index_select(nn.Softmax(dim=1)(orig_s), dim=1, index=self.s_to_f_index)
+        sy = torch.index_select(nn.Softmax(dim=1)(orig_s), dim=1, index=self.y_to_s_index)
         y = fy * sy
         loss += self.structured_loss(y, flat_y_labels).masked_select(flat_mask).mean()
 
