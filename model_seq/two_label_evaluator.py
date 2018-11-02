@@ -196,10 +196,10 @@ class eval_wc(eval_batch):
         crit.eval()
         self.reset()
 
-        for f_c, f_p, b_c, b_p, f_w, label_f, label_s, _, raw_label_f, raw_label_s in dataset_loader:
+        for f_c, f_p, b_c, b_p, f_w, label_f, label_s, mask, raw_label_f, raw_label_s in dataset_loader:
             features = feature_extractor(f_c, f_p, b_c, b_p, f_w)
             f, s, fs, ff, ss, fs_t, sf_t = base_model(features)
-            f_out, s_out, _ = crit(f, s, fs, ff, ss, fs_t, sf_t, label_f, label_s)
+            f_out, s_out, _ = crit(f, s, fs, ff, ss, fs_t, sf_t, label_f, label_s, mask)
             self.eval_b(f_out, s_out, raw_label_f, raw_label_s)
 
         return self.calc_s()

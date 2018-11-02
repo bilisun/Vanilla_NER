@@ -79,8 +79,8 @@ class TFCriterion(nn.Module, MessagePassing):
         self.only_unary = only_unary
         self.no_spatial = no_spatial
 
-        self.f_loss = nn.CrossEntropyLoss(reduction='none')
-        self.s_loss = nn.CrossEntropyLoss(reduction='none')
+        self.f_loss = nn.CrossEntropyLoss(reduce=False)
+        self.s_loss = nn.CrossEntropyLoss(reduce=False)
 
         # self.c_to_f_index = np.array([-1] * len(y_map))
         # self.c_to_s_index = np.array([-1] * len(y_map))
