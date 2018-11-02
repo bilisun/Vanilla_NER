@@ -86,6 +86,8 @@ if __name__ == "__main__":
     f_map['<eof>'] = len(f_map)
     s_map['<eof>'] = len(s_map)
 
+    y_map['<eof>'] = len(y_map)
+
     with open(args.output_map, 'wb') as f:
         pickle.dump({
             'gw_map': gw_map, 'c_map': c_map, 'f_map': f_map, 's_map': s_map, 'y_map': y_map, 'emb_array': embedding_array
