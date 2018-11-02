@@ -10,6 +10,8 @@ import functools
 
 
 def split_label(label_str):
+    if label_str == '<eof>':
+        return '<eof>', '<eof>'
     components = label_str.split('-')
     if len(components) == 2:
         return components[0], components[1]
