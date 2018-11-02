@@ -91,8 +91,8 @@ class TFCriterion(nn.Module, MessagePassing):
             self.y_to_f_index[index] = f_map[lf]
             self.y_to_s_index[index] = s_map[ls]
 
-        self.y_to_f_index = torch.from_numpy(self.y_to_f_index).long().cuda()
-        self.y_to_s_index = torch.from_numpy(self.y_to_s_index).long().cuda()
+        self.y_to_f_index = Variable(torch.from_numpy(self.y_to_f_index).long().cuda())
+        self.y_to_s_index = Variable(torch.from_numpy(self.y_to_s_index).long().cuda())
 
         self.structured_loss = nn.NLLLoss(reduce=False)
 
