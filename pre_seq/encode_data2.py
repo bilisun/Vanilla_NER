@@ -31,6 +31,7 @@ def encode_dataset(input_file, gw_map, c_map, f_map, s_map, y_map):
             else:
                 line = line.split()
                 tmpw_gw.append(gw_map.get(line[0].lower(), gw_unk))
+                assert line[-1] != '<eof>'
                 a, b = split_label(line[-1])
                 tmpf.append(f_map[a])
                 tmps.append(s_map[b])

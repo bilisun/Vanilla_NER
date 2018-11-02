@@ -64,6 +64,7 @@ if __name__ == "__main__":
                 if line[-1] not in y_map:
                     y_map[line[-1]] = len(y_map)
 
+                assert line[-1] != '<eof>'
                 a, b = split_label(line[-1])
                 if a not in f_map:
                     f_map[a] = len(f_map)
